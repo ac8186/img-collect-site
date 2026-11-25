@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>全部图片</title>
+
+<!-- ============================================================================
+     CONFIG 区块 —— 只需要填写下面两个值（与 upload.html 保持一致）
+
+     1) SUPABASE_URL      Supabase 后台 -> Project Settings -> API -> Project URL
+                           形如 https://abcdefghijklmnop.supabase.co
+     2) SUPABASE_ANON_KEY Supabase 后台 -> Project Settings -> API -> anon public
+                           一长串以 eyJ 开头的字符串（注意不是 service_role）
+     ========================================================================= -->
+<script>
+const CONFIG = {
+  SUPABASE_URL: 'https://jcaexhqpmbucaezwoczx.supabase.co',
+
+  SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpjYWV4aHFwbWJ1Y2FlendvY3p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTU1NzQxOTMsImV4cCI6MjExMTE1MDE5M30.b5GKakyaNMCHxswcq3nqm-4wHpuNKHN_AAI1iTpg-8o',
+
+  // 以下一般不需要修改
+  BUCKET: 'uploads',   // 存储桶名称，须与 supabase_schema.sql 一致
+  PAGE_SIZE: 24        // 每次加载数量
+};
+</script>
+<!-- ============================ CONFIG 区块结束 ============================ -->
+
+<style>
+  :root{
+    --bg:#f5f6f8; --card:#ffffff; --text:#1d2129; --sub:#86909c;
+    --line:#e5e6eb; --primary:#3f7cff; --radius:12px;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0; background:var(--bg); color:var(--text); line-height:1.6;
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1120px; margin:0 auto; padding:34px 22px 80px;}
+  header{display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:18px;}
+  h1{font-size:21px; margin:0; letter-spacing:.4px;}
+  header a{font-size:13px; color:var(--primary); text-decoration:none;}
+  header a:hover{text-decoration:underline;}
+
+  .banner{
+    padding:12px 14px; border-radius:10px; font-size:13px; margin-bottom:16px;
+    border:1px solid var(--line); background:#fff; color:var(--sub);
+  }
+  .banner.err{background:rgba(245,63,63,.06); border-color:rgba(245,63,63,.3); color:#b32a2a;}
+  .banner.warn{background:rgba(255,125,0,.07); border-color:rgba(255,125,0,.3); color:#a85b00;}
+  .banner code{background:rgba(0,0,0,.05); padding:1px 5px; border-radius:4px; font-size:12px;}
+
+  .toolbar{
+    display:flex; align-items:center; justify-content:space-between; gap:14px;
+    flex-wrap:wrap; margin-bottom:18px;
+  }
+  .chips{display:flex; gap:8px; flex-wrap:wrap;}
+  .chip{
+    padding:7px 15px; font-size:13.5px; border-radius:999px; cursor:pointer;
+    border:1px solid var(--line); background:#fff; color:var(--text);
+    transition:.16s; font-family:inherit;
+  }
+  .chip:hover{border-color:#c9cdd4;}
+  .chip.active{background:var(--primary); border-color:var(--primary); color:#fff; font-weight:600;}
+  .count{font-size:12.5px; color:var(--sub);}
+
+  .grid{
+    display:grid; gap:12px;
+    grid-template-columns:repeat(auto-fill, minmax(178px, 1fr));
+  }
+  .cell{
+    position:relative; margin:0; border-radius:10px; overflow:hidden;
+    background:#eef0f3; aspect-ratio:1 / 1; cursor:zoom-in;
+  }
+  .cell img{
+    width:100%; height:100%; object-fit:cover; display:block;
+    transition:transform .32s ease;
+  }
+  .cell:hover img{transform:scale(1.04);}
+  .cell .caption{
+    position:absolute; left:0; right:0; bottom:0;
+    padding:22px 10px 8px; font-size:11.5px; color:#fff;
+    background:linear-gradient(to top, rgba(0,0,0,.62), rgba(0,0,0,0));
+    display:flex; justify-content:space-between; gap:8px;
+    opacity:0; transition:opacity .24s;
+  }
+  .cell:hover .caption{opacity:1;}
+  .cell .caption .cat{
+    font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .cell .caption .date{white-space:nowrap; opacity:.82;}
+
+  .empty{
+    padding:60px 20px; text-align:center; font-size:14px; color:var(--sub);
+  }
+  .loader{
+    padding:26px 0; text-align:center; font-size:13px; color:var(--sub);
+  }
+  .loader.hide{display:none;}
+
+  /* 灯箱 */
+  .lightbox{
+    position:fixed; inset:0; z-index:50; background:rgba(12,14,18,.92);
+    display:flex; align-items:center; justify-content:center; flex-direction:column;
+    padding:40px 20px 20px;
+  }
+  .lightbox[hidden]{display:none;}
+  .lightbox img{
+    max-width:92vw; max-height:78vh; object-fit:contain; border-radius:6px;
+    box-shadow:0 18px 60px rgba(0,0,0,.5);
+  }
+  .lb-bar{
+    margin-top:16px; display:flex; align-items:center; gap:18px;
+    font-size:13px; color:rgba(255,255,255,.86); flex-wrap:wrap; justify-content:center;
+  }
+  .lb-bar a{color:#8fb4ff; text-decoration:none;}
+  .lb-bar a:hover{text-decoration:underline;}
+  .lb-bar button{
+    padding:6px 16px; font-size:13px; border-radius:7px; cursor:pointer;
+    border:1px solid rgba(255,255,255,.32); background:transparent; color:#fff; font-family:inherit;
+  }
+  .lb-bar button:hover{background:rgba(255,255,255,.12);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>全部图片</h1>
+    <a href="./upload.html">&larr; 去上传</a>
+  </header>
+
+  <div id="banner" class="banner" hidden></div>
+
+  <div class="toolbar">
+    <div id="chips" class="chips"></div>
+    <div id="count" class="count"></div>
+  </div>
+
+  <div id="grid" class="grid"></div>
+  <div id="empty" class="empty" hidden>还没有任何图片，先去上传页传一张吧。</div>
+  <div id="loader" class="loader"></div>
+  <div id="sentinel" style="height:1px;"></div>
+</div>
+
+<div id="lightbox" class="lightbox" hidden>
+  <img id="lbImg" alt="">
+  <div class="lb-bar">
+    <span id="lbMeta"></span>
+    <a id="lbOpen" href="#" target="_blank" rel="noopener">在新窗口打开原图</a>
+    <button id="lbClose" type="button">关闭</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const $ = function (sel) { return document.querySelector(sel); };
+const bannerEl = $('#banner');
+const chipsEl = $('#chips');
+const countEl = $('#count');
+const gridEl = $('#grid');
+const emptyEl = $('#empty');
+const loaderEl = $('#loader');
+const sentinel = $('#sentinel');
+const lightbox = $('#lightbox');
+const lbImg = $('#lbImg');
+const lbMeta = $('#lbMeta');
+const lbOpen = $('#lbOpen');
+const lbClose = $('#lbClose');
+
+let db = null;
+let activeCategory = null;   // null 表示全部
+let offset = 0;
+let total = 0;
+let loading = false;
+let hasMore = true;
+let io = null;
+let reqToken = 0;            // 用于丢弃过期请求的结果（快速切换筛选时）
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
+function formatDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const p = function (n) { return String(n).padStart(2, '0'); };
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+}
+
+function friendlyError(err) {
+  const msg = (err && err.message) ? err.message : String(err);
+  if (/relation .* does not exist/i.test(msg)) return '数据表不存在，请先执行 supabase_schema.sql';
+  if (/row-level security/i.test(msg)) return '被数据库安全策略拒绝，请检查 RLS 策略是否已创建';
+  if (/Failed to fetch|network/i.test(msg)) return '网络请求失败，请检查网络或 Supabase 项目地址';
+  return msg;
+}
+
+function showBanner(html, type) {
+  bannerEl.hidden = false;
+  bannerEl.className = 'banner' + (type ? ' ' + type : '');
+  bannerEl.innerHTML = html;
+}
+
+function publicUrl(path) {
+  const res = db.storage.from(CONFIG.BUCKET).getPublicUrl(path);
+  return res.data.publicUrl;
+}
+
+function ensureClient() {
+  if (!CONFIG.SUPABASE_URL || !CONFIG.SUPABASE_ANON_KEY) return null;
+  if (!db) db = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+  return db;
+}
+
+
+/* ---------------- 选项筛选条 ---------------- */
+async function loadCategories() {
+  // 先放好"全部"按钮，即使选项读取失败也能浏览全部图片
+  chipsEl.innerHTML = '';
+  const all = document.createElement('button');
+  all.className = 'chip active';
+  all.type = 'button';
+  all.textContent = '全部';
+  all.dataset.value = '';
+  chipsEl.appendChild(all);
+
+  const res = await db
+    .from('categories')
+    .select('id, name, sort_order')
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true })
+    .order('id', { ascending: true });
+
+  if (res.error) {
+    showBanner('读取选项失败（仍可浏览全部图片）：' + escapeHtml(friendlyError(res.error)), 'err');
+    return;
+  }
+
+  const rows = res.data || [];
+  rows.forEach(function (c) {
+    const b = document.createElement('button');
+    b.className = 'chip';
+    b.type = 'button';
+    b.textContent = c.name;
+    b.dataset.value = String(c.id);
+    chipsEl.appendChild(b);
+  });
+}
+
+// 筛选点击只绑定一次
+chipsEl.addEventListener('click', function (e) {
+  const btn = e.target.closest('.chip');
+  if (!btn) return;
+  Array.prototype.forEach.call(chipsEl.children, function (el) {
+    el.classList.toggle('active', el === btn);
+  });
+  activeCategory = btn.dataset.value ? Number(btn.dataset.value) : null;
+  resetAndLoad();
+});
+
+
+/* ---------------- 分页加载 ---------------- */
+function resetAndLoad() {
+  reqToken += 1;
+  offset = 0;
+  total = 0;
+  hasMore = true;
+  loading = false;
+  gridEl.innerHTML = '';
+  emptyEl.hidden = true;
+  countEl.textContent = '';
+  fetchPage();
+}
+
+async function fetchPage() {
+  if (loading || !hasMore) return;
+  loading = true;
+  const token = reqToken;
+  loaderEl.classList.remove('hide');
+  loaderEl.textContent = '加载中…';
+
+  let query = db
+    .from('images')
+    .select('id, file_path, file_name, created_at, category_id, categories ( name )', { count: 'exact' })
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
+    .range(offset, offset + CONFIG.PAGE_SIZE - 1);
+
+  if (activeCategory !== null) query = query.eq('category_id', activeCategory);
+
+  const res = await query;
+
+  // 期间用户切换了筛选条件，丢弃这次结果
+  if (token !== reqToken) return;
+
+  if (res.error) {
+    loaderEl.textContent = '';
+    loaderEl.classList.add('hide');
+    loading = false;
+    hasMore = false;
+    showBanner('读取图片失败：' + escapeHtml(friendlyError(res.error)), 'err');
+    return;
+  }
+
+  const rows = res.data || [];
+  if (typeof res.count === 'number') total = res.count;
+
+  if (offset === 0) {
+    emptyEl.hidden = rows.length !== 0;
+    if (rows.length === 0) countEl.textContent = '';
+  }
+
+  rows.forEach(function (row) { gridEl.appendChild(buildCell(row)); });
+
+  offset += rows.length;
+  hasMore = rows.length === CONFIG.PAGE_SIZE;
+
+  countEl.textContent = total > 0 ? ('共 ' + total + ' 张') : '';
+  loaderEl.classList.add('hide');
+  loading = false;
+}
+
+function buildCell(row) {
+  const url = publicUrl(row.file_path);
+  const catName = (row.categories && row.categories.name) ? row.categories.name : '未分类';
+
+  const cell = document.createElement('figure');
+  cell.className = 'cell';
+  cell.title = row.file_name || '';
+
+  const img = document.createElement('img');
+  img.loading = 'lazy';           // 原生懒加载
+  img.decoding = 'async';
+  img.alt = row.file_name || catName;
+  img.src = url;
+  cell.appendChild(img);
+
+  const cap = document.createElement('figcaption');
+  cap.className = 'caption';
+  cap.innerHTML = '<span class="cat">' + escapeHtml(catName) + '</span>' +
+                  '<span class="date">' + escapeHtml(formatDate(row.created_at)) + '</span>';
+  cell.appendChild(cap);
+
+  cell.addEventListener('click', function () { openLightbox(url, row, catName); });
+  return cell;
+}
+
+
+/* ---------------- 灯箱 ---------------- */
+function openLightbox(url, row, catName) {
+  lbImg.src = url;
+  lbImg.alt = row.file_name || '';
+  lbOpen.href = url;
+  lbMeta.textContent = catName + ' · ' + formatDate(row.created_at) +
+                       (row.file_name ? ' · ' + row.file_name : '');
+  lightbox.hidden = false;
+  document.body.style.overflow = 'hidden';
+}
+
+function closeLightbox() {
+  lightbox.hidden = true;
+  lbImg.src = '';
+  document.body.style.overflow = '';
+}
+
+lbClose.addEventListener('click', closeLightbox);
+lightbox.addEventListener('click', function (e) {
+  if (e.target === lightbox) closeLightbox();
+});
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape' && !lightbox.hidden) closeLightbox();
+});
+
+
+/* ---------------- 启动 ---------------- */
+function observeSentinel() {
+  if (io) io.disconnect();
+  io = new IntersectionObserver(function (entries) {
+    if (entries[0].isIntersecting) fetchPage();
+  }, { rootMargin: '600px 0px' });
+  io.observe(sentinel);
+}
+
+async function boot() {
+  if (!ensureClient()) {
+    showBanner('尚未配置 Supabase。请用文本编辑器打开本文件，找到顶部的 <code>CONFIG</code> 区块，' +
+               '填写 <code>SUPABASE_URL</code> 与 <code>SUPABASE_ANON_KEY</code>，保存后刷新页面。', 'err');
+    chipsEl.innerHTML = '';
+    emptyEl.hidden = true;
+    loaderEl.classList.add('hide');
+    return;
+  }
+  await loadCategories();
+  resetAndLoad();
+  observeSentinel();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', boot);
+} else {
+  boot();
+}
+</script>
+</body>
+</html>
