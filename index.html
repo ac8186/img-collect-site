@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>图片收集站</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+    background: #f5f6f8; color: #1d1f23; padding: 24px;
+  }
+  .wrap { width: 100%; max-width: 720px; }
+  h1 { font-size: 24px; font-weight: 600; margin: 0 0 8px; letter-spacing: .5px; }
+  .sub { color: #6b7280; font-size: 14px; margin: 0 0 28px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+  a.card {
+    display: block; padding: 22px 20px; background: #fff; border: 1px solid #e5e7eb;
+    border-radius: 14px; text-decoration: none; color: inherit;
+    transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  }
+  a.card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.08); border-color: #c7d2fe; }
+  .t { font-size: 17px; font-weight: 600; margin-bottom: 6px; }
+  .d { font-size: 13px; color: #6b7280; line-height: 1.6; }
+  .ico { font-size: 22px; margin-bottom: 10px; display: block; }
+  footer { margin-top: 28px; font-size: 12px; color: #9ca3af; text-align: center; }
+  @media (prefers-color-scheme: dark) {
+    body { background: #14161a; color: #e8eaed; }
+    a.card { background: #1c1f24; border-color: #2a2f36; }
+    .sub, .d { color: #9aa1ab; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>图片收集站</h1>
+    <p class="sub">选择分类上传图片，或浏览全部已上传内容。</p>
+    <div class="grid">
+      <a class="card" href="upload.html">
+        <span class="ico">⬆</span>
+        <div class="t">上传图片</div>
+        <div class="d">选择分类 → 选图 → 自动压缩后上传</div>
+      </a>
+      <a class="card" href="browse.html">
+        <span class="ico">▦</span>
+        <div class="t">浏览全部</div>
+        <div class="d">网格查看、按分类筛选、点击放大</div>
+      </a>
+    </div>
+    <footer>数据存储于 Supabase · 免费额度 1GB</footer>
+  </div>
+</body>
+</html>
