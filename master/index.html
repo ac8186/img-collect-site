@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>记录管理 · 小区物业管理问题汇总</title>
+
+<!-- ============================ CONFIG 区块开始 ============================ -->
+<script>
+/* 与 upload.html / browse.html 使用同一个 Supabase 项目 */
+const CONFIG = {
+  SUPABASE_URL: 'https://jcaexhqpmbucaezwoczx.supabase.co',
+  SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpjYWV4aHFwbWJ1Y2FlendvY3p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTU1NzQxOTMsImV4cCI6MjExMTE1MDE5M30.b5GKakyaNMCHxswcq3nqm-4wHpuNKHN_AAI1iTpg-8o',
+  PAGE_SIZE: 20,
+  EXPORT_PAGE: 200,
+  TOKEN_KEY: 'pf_admin_token'
+};
+</script>
+<!-- ============================ CONFIG 区块结束 ============================ -->
+
+<style>
+  :root{
+    --bg:#f5f6f8; --card:#ffffff; --text:#1d1f23; --sub:#6b7280; --line:#e5e7eb;
+    --brand:#2563eb; --brand-soft:#eff6ff; --danger:#dc2626; --danger-soft:#fef2f2;
+    --ok:#059669;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#14161a; --card:#1c1f24; --text:#e8eaed; --sub:#9aa1ab; --line:#2a2f36;
+      --brand:#60a5fa; --brand-soft:#1e293b; --danger:#f87171; --danger-soft:#2a1c1f; --ok:#34d399; }
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text); min-height:100vh; padding:20px 16px 48px;
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",Arial,sans-serif;
+    font-size:14px; line-height:1.6;
+  }
+  .wrap{max-width:1080px; margin:0 auto;}
+  h1{font-size:20px; margin:0; font-weight:600;}
+
+  /* ---------- 口令门 ---------- */
+  .gate{max-width:420px; margin:12vh auto 0; background:var(--card); border:1px solid var(--line);
+    border-radius:16px; padding:28px 24px;}
+  .gate h2{margin:0 0 6px; font-size:18px; font-weight:600;}
+  .gate p{margin:0 0 18px; color:var(--sub); font-size:13px;}
+  .gate input{width:100%; padding:11px 13px; border:1px solid var(--line); border-radius:10px;
+    background:var(--bg); color:var(--text); font-size:15px; outline:none;}
+  .gate input:focus{border-color:var(--brand);}
+  .gate button{margin-top:14px; width:100%; padding:11px; border:0; border-radius:10px;
+    background:var(--brand); color:#fff; font-size:15px; font-weight:600; cursor:pointer;}
+  .gate button:disabled{opacity:.6; cursor:default;}
+  .gmsg{margin-top:12px; font-size:13px; min-height:18px; color:var(--danger);}
+
+  /* ---------- 顶部 ---------- */
+  .top{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:16px;}
+  .badge{font-size:12px; color:var(--brand); background:var(--brand-soft); border-radius:999px;
+    padding:3px 10px; white-space:nowrap;}
+  .spacer{flex:1;}
+  .btn{border:1px solid var(--line); background:var(--card); color:var(--text); border-radius:10px;
+    padding:8px 14px; font-size:13px; cursor:pointer; white-space:nowrap;}
+  .btn:hover{border-color:var(--brand); color:var(--brand);}
+  .btn:disabled{opacity:.5; cursor:default;}
+  .btn.danger{border-color:var(--danger); color:var(--danger); background:var(--danger-soft);}
+  .btn.primary{background:var(--brand); border-color:var(--brand); color:#fff;}
+  .btn.primary:hover{color:#fff; opacity:.92;}
+
+  /* ---------- 工具条 ---------- */
+  .panel{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px;}
+  .toolbar{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:14px;}
+  .chips{display:flex; gap:8px; flex-wrap:wrap;}
+  .chip{border:1px solid var(--line); background:transparent; color:var(--sub); border-radius:999px;
+    padding:6px 14px; font-size:13px; cursor:pointer;}
+  .chip.active{background:var(--brand); border-color:var(--brand); color:#fff;}
+  .searchbox{display:flex; gap:8px; flex:1; min-width:220px;}
+  .searchbox input{flex:1; min-width:0; padding:9px 12px; border:1px solid var(--line); border-radius:10px;
+    background:var(--bg); color:var(--text); font-size:13px; outline:none;}
+  .searchbox input:focus{border-color:var(--brand);}
+
+  .selbar{display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:10px 0 14px;
+    border-bottom:1px solid var(--line); margin-bottom:6px; font-size:13px; color:var(--sub);}
+  .selbar label{display:flex; align-items:center; gap:7px; cursor:pointer; color:var(--text);}
+  input[type=checkbox]{width:16px; height:16px; accent-color:var(--brand); cursor:pointer;}
+
+  /* ---------- 列表 ---------- */
+  .row{display:flex; gap:14px; padding:14px 0; border-bottom:1px solid var(--line); align-items:flex-start;}
+  .row:last-child{border-bottom:0;}
+  .row .pick{padding-top:34px;}
+  .thumb{width:96px; height:96px; flex:0 0 auto; border-radius:10px; object-fit:cover;
+    background:var(--bg); border:1px solid var(--line); cursor:zoom-in;}
+  .meta{flex:1; min-width:0;}
+  .meta .line1{display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:5px;}
+  .tag{font-size:12px; padding:2px 9px; border-radius:999px; background:var(--brand-soft); color:var(--brand);}
+  .id{font-size:12px; color:var(--sub);}
+  .desc{font-size:14px; word-break:break-word; white-space:pre-wrap; margin:0 0 6px;}
+  .time{font-size:12px; color:var(--sub);}
+  .empty{padding:56px 0; text-align:center; color:var(--sub);}
+  .empty .big{font-size:34px; opacity:.5; margin-bottom:8px;}
+
+  /* ---------- 分页 ---------- */
+  .pager{display:flex; align-items:center; justify-content:center; gap:12px; margin-top:18px;
+    font-size:13px; color:var(--sub); flex-wrap:wrap;}
+
+  /* ---------- 弹层 ---------- */
+  .mask{position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center;
+    justify-content:center; padding:24px; z-index:60;}
+  .mask[hidden]{display:none;}
+  .dialog{background:var(--card); border-radius:14px; padding:22px; max-width:420px; width:100%;}
+  .dialog h3{margin:0 0 10px; font-size:16px;}
+  .dialog p{margin:0; color:var(--sub); font-size:13px;}
+  .dialog .acts{display:flex; gap:10px; justify-content:flex-end; margin-top:20px;}
+
+  .toast{position:fixed; left:50%; bottom:28px; transform:translateX(-50%); background:#111827;
+    color:#fff; padding:10px 18px; border-radius:10px; font-size:13px; z-index:80; max-width:88vw;}
+  .toast[hidden]{display:none;}
+  .toast.err{background:var(--danger);}
+
+  .viewer{position:fixed; inset:0; background:rgba(0,0,0,.86); display:flex; align-items:center;
+    justify-content:center; z-index:70; padding:20px; cursor:zoom-out;}
+  .viewer[hidden]{display:none;}
+  .viewer img{max-width:100%; max-height:100%; object-fit:contain; border-radius:8px;}
+
+  @media (max-width:640px){
+    body{padding:14px 10px 40px;}
+    .thumb{width:76px; height:76px;}
+    .row .pick{padding-top:26px;}
+    .toolbar{gap:8px;}
+    .searchbox{min-width:100%;}
+    .btn{padding:7px 11px;}
+  }
+  .foot{margin-top:22px; text-align:center; font-size:12px; color:var(--sub);}
+  .foot a{color:var(--sub);}
+</style>
+</head>
+<body>
+
+<!-- ======================= 口令门 ======================= -->
+<div id="gate" class="gate">
+  <h2>记录管理</h2>
+  <p>请输入管理口令。口令仅保存在本次浏览的会话中，关闭标签页即失效。</p>
+  <form id="gateForm" autocomplete="off">
+    <input type="password" id="tokenInput" placeholder="管理口令" autocomplete="current-password">
+    <button type="submit" id="gateBtn">进入后台</button>
+  </form>
+  <div class="gmsg" id="gateMsg"></div>
+</div>
+
+<!-- ======================= 后台主体 ======================= -->
+<div id="app" class="wrap" hidden>
+  <div class="top">
+    <h1>记录管理</h1>
+    <span class="badge" id="totalBadge">共 0 条</span>
+    <span class="spacer"></span>
+    <button type="button" class="btn" id="refreshBtn">刷新</button>
+    <button type="button" class="btn" id="exportBtn">导出 CSV</button>
+    <button type="button" class="btn" id="logoutBtn">退出</button>
+  </div>
+
+  <div class="panel">
+    <div class="toolbar">
+      <div class="chips" id="filters"></div>
+      <div class="searchbox">
+        <input type="search" id="searchInput" placeholder="按问题描述关键词搜索…" maxlength="100">
+        <button type="button" class="btn primary" id="searchBtn">搜索</button>
+      </div>
+    </div>
+
+    <div class="selbar">
+      <label><input type="checkbox" id="checkAll"> 全选本页</label>
+      <span id="selInfo">已选 0 条</span>
+      <span class="spacer"></span>
+      <button type="button" class="btn danger" id="delBtn" disabled>删除选中</button>
+    </div>
+
+    <div id="list"></div>
+    <div id="empty" class="empty" hidden>
+      <div class="big">▦</div>
+      <div id="emptyText">暂无记录</div>
+    </div>
+
+    <div class="pager" id="pager" hidden>
+      <button type="button" class="btn" id="prevBtn">上一页</button>
+      <span id="pageInfo">第 1 / 1 页</span>
+      <button type="button" class="btn" id="nextBtn">下一页</button>
+    </div>
+  </div>
+
+  <div class="foot">
+    <a href="../index.html">← 返回站点首页</a>
+  </div>
+</div>
+
+<!-- 二次确认 -->
+<div class="mask" id="mask" hidden>
+  <div class="dialog">
+    <h3>确认删除</h3>
+    <p id="confirmText"></p>
+    <div class="acts">
+      <button type="button" class="btn" id="cancelBtn">取消</button>
+      <button type="button" class="btn danger" id="confirmBtn">确认删除</button>
+    </div>
+  </div>
+</div>
+
+<!-- 大图查看 -->
+<div class="viewer" id="viewer" hidden><img id="viewerImg" alt="记录照片"></div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://fastly.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function () {
+  'use strict';
+
+  var FUNCTIONS_BASE = String(CONFIG.SUPABASE_URL || '').replace(/\/+$/, '') + '/functions/v1';
+  var PAGE_SIZE = Number(CONFIG.PAGE_SIZE) || 20;
+  var EXPORT_PAGE = Number(CONFIG.EXPORT_PAGE) || 200;
+  var TOKEN_KEY = CONFIG.TOKEN_KEY || 'pf_admin_token';
+
+  var state = {
+    token: '',
+    category: 'all',
+    q: '',
+    page: 0,
+    total: 0,
+    records: [],
+    selected: {},      // id -> true
+    loading: false,
+    categories: []
+  };
+
+  var el = {
+    gate: document.getElementById('gate'),
+    gateForm: document.getElementById('gateForm'),
+    gateBtn: document.getElementById('gateBtn'),
+    gateMsg: document.getElementById('gateMsg'),
+    tokenInput: document.getElementById('tokenInput'),
+    app: document.getElementById('app'),
+    totalBadge: document.getElementById('totalBadge'),
+    filters: document.getElementById('filters'),
+    searchInput: document.getElementById('searchInput'),
+    searchBtn: document.getElementById('searchBtn'),
+    checkAll: document.getElementById('checkAll'),
+    selInfo: document.getElementById('selInfo'),
+    delBtn: document.getElementById('delBtn'),
+    list: document.getElementById('list'),
+    empty: document.getElementById('empty'),
+    emptyText: document.getElementById('emptyText'),
+    pager: document.getElementById('pager'),
+    pageInfo: document.getElementById('pageInfo'),
+    prevBtn: document.getElementById('prevBtn'),
+    nextBtn: document.getElementById('nextBtn'),
+    refreshBtn: document.getElementById('refreshBtn'),
+    exportBtn: document.getElementById('exportBtn'),
+    logoutBtn: document.getElementById('logoutBtn'),
+    mask: document.getElementById('mask'),
+    confirmText: document.getElementById('confirmText'),
+    confirmBtn: document.getElementById('confirmBtn'),
+    cancelBtn: document.getElementById('cancelBtn'),
+    viewer: document.getElementById('viewer'),
+    viewerImg: document.getElementById('viewerImg'),
+    toast: document.getElementById('toast')
+  };
+
+  // ---------------- 基础工具 ----------------
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function pad(n) { return n < 10 ? '0' + n : String(n); }
+
+  function fmtTime(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return String(iso);
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
+      ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
+
+  var toastTimer = null;
+  function toast(msg, isErr) {
+    el.toast.textContent = msg;
+    el.toast.className = 'toast' + (isErr ? ' err' : '');
+    el.toast.hidden = false;
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.toast.hidden = true; }, 2600);
+  }
+
+  // ---------------- 接口调用 ----------------
+  function api(payload) {
+    return fetch(FUNCTIONS_BASE + '/admin', {
+      method: 'POST',
+      headers: {
+        'apikey': CONFIG.SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + CONFIG.SUPABASE_ANON_KEY,
+        'x-admin-token': state.token,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    }).then(function (res) {
+      return res.text().then(function (text) {
+        var data = null;
+        try { data = JSON.parse(text || '{}'); } catch (e) { data = null; }
+        return { status: res.status, body: data };
+      });
+    });
+  }
+
+  function handleAuthFail() {
+    state.token = '';
+    try { sessionStorage.removeItem(TOKEN_KEY); } catch (e) { /* ignore */ }
+    el.app.hidden = true;
+    el.gate.hidden = false;
+    el.gateMsg.textContent = '管理口令不正确或已失效，请重新输入';
+    el.tokenInput.value = '';
+    el.tokenInput.focus();
+  }
+
+  // ---------------- 口令门 ----------------
+  function verifyToken(token) {
+    state.token = token;
+    return api({ action: 'list', limit: 1, offset: 0 }).then(function (r) {
+      if (r.status === 200 && r.body && r.body.ok) return true;
+      if (r.status === 401) return false;
+      var msg = (r.body && r.body.message) || ('校验失败（HTTP ' + r.status + '）');
+      throw new Error(msg);
+    });
+  }
+
+  el.gateForm.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var token = el.tokenInput.value.trim();
+    if (!token) { el.gateMsg.textContent = '请输入管理口令'; return; }
+    el.gateBtn.disabled = true;
+    el.gateMsg.textContent = '';
+    verifyToken(token).then(function (pass) {
+      el.gateBtn.disabled = false;
+      if (!pass) { el.gateMsg.textContent = '管理口令不正确，请重新输入'; el.tokenInput.select(); return; }
+      try { sessionStorage.setItem(TOKEN_KEY, token); } catch (err) { /* ignore */ }
+      enterApp();
+    }).catch(function (err) {
+      el.gateBtn.disabled = false;
+      el.gateMsg.textContent = err && err.message ? err.message : '网络异常，请稍后重试';
+    });
+  });
+
+  function enterApp() {
+    el.gate.hidden = true;
+    el.app.hidden = false;
+    loadCategories().then(function () { load(0); });
+  }
+
+  // ---------------- 分类 ----------------
+  function loadCategories() {
+    var fallback = [
+      { id: 10, name: '停车管理' },
+      { id: 20, name: '卫生问题' },
+      { id: 30, name: '安全隐患' },
+      { id: 99, name: '其他问题' }
+    ];
+    var db = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+    return db.from('categories').select('id,name').order('sort_order', { ascending: true })
+      .then(function (res) {
+        var rows = (res && !res.error && res.data) || [];
+        state.categories = rows.length ? rows : fallback;
+      })
+      .catch(function () { state.categories = fallback; })
+      .then(function () { renderFilters(); });
+  }
+
+  function renderFilters() {
+    var html = '<button type="button" class="chip' + (state.category === 'all' ? ' active' : '') +
+      '" data-cat="all">全部</button>';
+    state.categories.forEach(function (c) {
+      html += '<button type="button" class="chip' +
+        (String(state.category) === String(c.id) ? ' active' : '') +
+        '" data-cat="' + escapeHtml(c.id) + '">' + escapeHtml(c.name) + '</button>';
+    });
+    el.filters.innerHTML = html;
+  }
+
+  el.filters.addEventListener('click', function (e) {
+    var btn = e.target.closest('.chip');
+    if (!btn) return;
+    state.category = btn.getAttribute('data-cat');
+    clearSelection();
+    renderFilters();
+    load(0);
+  });
+
+  // ---------------- 列表 ----------------
+  function load(page) {
+    if (state.loading) return;
+    state.loading = true;
+    el.list.style.opacity = '.5';
+
+    var payload = {
+      action: 'list',
+      limit: PAGE_SIZE,
+      offset: page * PAGE_SIZE,
+      q: state.q
+    };
+    if (state.category !== 'all') payload.category_id = Number(state.category);
+
+    api(payload).then(function (r) {
+      state.loading = false;
+      el.list.style.opacity = '';
+
+      if (r.status === 401) { handleAuthFail(); return; }
+      if (r.status !== 200 || !r.body || !r.body.ok) {
+        toast((r.body && r.body.message) || ('加载失败（HTTP ' + r.status + '）'), true);
+        return;
+      }
+
+      var data = r.body.data || {};
+      state.page = page;
+      state.records = data.records || [];
+      state.total = Number(data.total) || 0;
+      clearSelection(false);
+      render();
+    }).catch(function (err) {
+      state.loading = false;
+      el.list.style.opacity = '';
+      toast('网络异常：' + (err && err.message ? err.message : '请稍后重试'), true);
+    });
+  }
+
+  function render() {
+    el.totalBadge.textContent = '共 ' + state.total + ' 条';
+
+    if (state.records.length === 0) {
+      el.list.innerHTML = '';
+      el.empty.hidden = false;
+      el.emptyText.textContent = state.q
+        ? '没有匹配「' + state.q + '」的记录'
+        : (state.category === 'all' ? '暂无记录' : '该分类下暂无记录');
+      el.pager.hidden = true;
+      updateSelBar();
+      return;
+    }
+
+    el.empty.hidden = true;
+    var html = '';
+    state.records.forEach(function (row) {
+      var src = row.public_url || '';
+      html += '<div class="row" data-id="' + escapeHtml(row.id) + '">' +
+        '<div class="pick"><input type="checkbox" class="pickbox" data-id="' +
+        escapeHtml(row.id) + '"' + (state.selected[row.id] ? ' checked' : '') + '></div>' +
+        (src
+          ? '<img class="thumb" src="' + escapeHtml(src) + '" alt="记录照片" data-full="' +
+            escapeHtml(src) + '" loading="lazy">'
+          : '<div class="thumb"></div>') +
+        '<div class="meta">' +
+          '<div class="line1"><span class="tag">' + escapeHtml(row.category_name || '未分类') +
+            '</span><span class="id">编号 #' + escapeHtml(row.id) + '</span></div>' +
+          '<p class="desc">' + escapeHtml(row.description || '（未填写问题描述）') + '</p>' +
+          '<div class="time">记录时间：' + escapeHtml(fmtTime(row.created_at)) + '</div>' +
+        '</div>' +
+      '</div>';
+    });
+    el.list.innerHTML = html;
+
+    var pages = Math.max(1, Math.ceil(state.total / PAGE_SIZE));
+    el.pager.hidden = false;
+    el.pageInfo.textContent = '第 ' + (state.page + 1) + ' / ' + pages + ' 页 · 每页 ' + PAGE_SIZE + ' 条';
+    el.prevBtn.disabled = state.page <= 0;
+    el.nextBtn.disabled = state.page + 1 >= pages;
+
+    updateSelBar();
+  }
+
+  el.list.addEventListener('click', function (e) {
+    var img = e.target.closest('.thumb');
+    if (img && img.getAttribute('data-full')) {
+      el.viewerImg.src = img.getAttribute('data-full');
+      el.viewer.hidden = false;
+      return;
+    }
+  });
+  el.viewer.addEventListener('click', function () {
+    el.viewer.hidden = true;
+    el.viewerImg.src = '';
+  });
+
+  // ---------------- 选择 ----------------
+  el.list.addEventListener('change', function (e) {
+    var box = e.target.closest('.pickbox');
+    if (!box) return;
+    var id = box.getAttribute('data-id');
+    if (box.checked) state.selected[id] = true;
+    else delete state.selected[id];
+    updateSelBar();
+  });
+
+  el.checkAll.addEventListener('change', function () {
+    state.selected = {};
+    if (el.checkAll.checked) {
+      state.records.forEach(function (row) { state.selected[row.id] = true; });
+      Array.prototype.forEach.call(el.list.querySelectorAll('.pickbox'), function (b) {
+        b.checked = true;
+      });
+    } else {
+      Array.prototype.forEach.call(el.list.querySelectorAll('.pickbox'), function (b) {
+        b.checked = false;
+      });
+    }
+    updateSelBar();
+  });
+
+  function clearSelection(resetBox) {
+    state.selected = {};
+    el.checkAll.checked = false;
+    if (resetBox !== false) {
+      Array.prototype.forEach.call(el.list.querySelectorAll('.pickbox'), function (b) {
+        b.checked = false;
+      });
+    }
+    updateSelBar();
+  }
+
+  function selectedIds() {
+    return Object.keys(state.selected).map(function (k) { return Number(k); })
+      .filter(function (n) { return !isNaN(n); });
+  }
+
+  function updateSelBar() {
+    var n = selectedIds().length;
+    el.selInfo.textContent = '已选 ' + n + ' 条';
+    el.delBtn.disabled = n === 0;
+    if (state.records.length > 0) {
+      el.checkAll.checked = state.records.every(function (row) { return state.selected[row.id]; });
+    } else {
+      el.checkAll.checked = false;
+    }
+  }
+
+  // ---------------- 删除 ----------------
+  el.delBtn.addEventListener('click', function () {
+    var ids = selectedIds();
+    if (ids.length === 0) return;
+    el.confirmText.textContent = '将删除 ' + ids.length +
+      ' 条记录，并同时删除对应的现场照片文件。此操作不可恢复。';
+    el.mask.hidden = false;
+  });
+
+  el.cancelBtn.addEventListener('click', function () { el.mask.hidden = true; });
+
+  el.confirmBtn.addEventListener('click', function () {
+    var ids = selectedIds();
+    el.mask.hidden = true;
+    if (ids.length === 0) return;
+    el.confirmBtn.disabled = true;
+    el.delBtn.disabled = true;
+
+    var okCount = 0;
+    var failMsgs = [];
+
+    // 接口单次最多 100 条，分批提交
+    var batches = [];
+    for (var i = 0; i < ids.length; i += 100) batches.push(ids.slice(i, i + 100));
+
+    var chain = Promise.resolve();
+    batches.forEach(function (batch) {
+      chain = chain.then(function () {
+        return api({ action: 'delete', ids: batch }).then(function (r) {
+          if (r.status === 401) { handleAuthFail(); throw new Error('__AUTH__'); }
+          if (r.status !== 200 || !r.body || !r.body.ok) {
+            failMsgs.push((r.body && r.body.message) || ('HTTP ' + r.status));
+            return;
+          }
+          var d = r.body.data || {};
+          okCount += Number(d.success_count) || 0;
+          (d.failed || []).forEach(function (f) {
+            failMsgs.push('#' + f.id + ' ' + (f.reason || '删除失败'));
+          });
+        });
+      });
+    });
+
+    chain.then(function () {
+      el.confirmBtn.disabled = false;
+      if (okCount > 0) toast('已删除 ' + okCount + ' 条记录' +
+        (failMsgs.length ? '，' + failMsgs.length + ' 条失败' : ''), failMsgs.length > 0);
+      else if (failMsgs.length) toast('删除失败：' + failMsgs[0], true);
+      load(state.page);
+    }).catch(function (err) {
+      el.confirmBtn.disabled = false;
+      if (err && err.message === '__AUTH__') return;
+      toast('网络异常：' + (err && err.message ? err.message : '请稍后重试'), true);
+      load(state.page);
+    });
+  });
+
+  // ---------------- 导出 CSV ----------------
+  function csvCell(v) {
+    var s = String(v == null ? '' : v).replace(/"/g, '""');
+    return '"' + s + '"';
+  }
+
+  el.exportBtn.addEventListener('click', function () {
+    el.exportBtn.disabled = true;
+    el.exportBtn.textContent = '导出中…';
+
+    var all = [];
+    function fetchPage(offset) {
+      var payload = { action: 'list', limit: EXPORT_PAGE, offset: offset, q: state.q };
+      if (state.category !== 'all') payload.category_id = Number(state.category);
+      return api(payload).then(function (r) {
+        if (r.status === 401) { handleAuthFail(); throw new Error('__AUTH__'); }
+        if (r.status !== 200 || !r.body || !r.body.ok) {
+          throw new Error((r.body && r.body.message) || ('HTTP ' + r.status));
+        }
+        var d = r.body.data || {};
+        var rows = d.records || [];
+        all = all.concat(rows);
+        if (rows.length > 0 && all.length < (Number(d.total) || all.length)) {
+          return fetchPage(offset + EXPORT_PAGE);
+        }
+        return null;
+      });
+    }
+
+    fetchPage(0).then(function () {
+      if (all.length === 0) {
+        toast('当前筛选条件下没有可导出的记录', true);
+        return;
+      }
+      var lines = ['编号,分类,问题描述,记录时间,图片地址'];
+      all.forEach(function (row) {
+        lines.push([
+          csvCell(row.id),
+          csvCell(row.category_name || '未分类'),
+          csvCell(row.description || ''),
+          csvCell(fmtTime(row.created_at)),
+          csvCell(row.public_url || '')
+        ].join(','));
+      });
+      var csv = '\ufeff' + lines.join('\r\n');
+      var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      var d = new Date();
+      a.href = url;
+      a.download = '问题记录_' + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) +
+        '_' + pad(d.getHours()) + pad(d.getMinutes()) + '.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 3000);
+      toast('已导出 ' + all.length + ' 条记录');
+    }).catch(function (err) {
+      if (err && err.message === '__AUTH__') return;
+      toast('导出失败：' + (err && err.message ? err.message : '请稍后重试'), true);
+    }).then(function () {
+      el.exportBtn.disabled = false;
+      el.exportBtn.textContent = '导出 CSV';
+    });
+  });
+
+  // ---------------- 其它交互 ----------------
+  el.searchBtn.addEventListener('click', function () {
+    state.q = el.searchInput.value.trim();
+    clearSelection();
+    load(0);
+  });
+
+  el.searchInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      el.searchBtn.click();
+    }
+  });
+
+  el.refreshBtn.addEventListener('click', function () { load(state.page); });
+  el.prevBtn.addEventListener('click', function () { if (state.page > 0) load(state.page - 1); });
+  el.nextBtn.addEventListener('click', function () {
+    var pages = Math.max(1, Math.ceil(state.total / PAGE_SIZE));
+    if (state.page + 1 < pages) load(state.page + 1);
+  });
+
+  el.logoutBtn.addEventListener('click', function () {
+    state.token = '';
+    try { sessionStorage.removeItem(TOKEN_KEY); } catch (e) { /* ignore */ }
+    el.app.hidden = true;
+    el.gate.hidden = false;
+    el.gateMsg.textContent = '';
+    el.tokenInput.value = '';
+    el.tokenInput.focus();
+  });
+
+  // ---------------- 启动 ----------------
+  var saved = '';
+  try { saved = sessionStorage.getItem(TOKEN_KEY) || ''; } catch (e) { saved = ''; }
+  if (saved) {
+    verifyToken(saved).then(function (pass) {
+      if (pass) enterApp();
+      else { state.token = ''; el.gateMsg.textContent = '管理口令已失效，请重新输入'; }
+    }).catch(function () {
+      el.gateMsg.textContent = '网络异常，请稍后重试';
+    });
+  } else {
+    el.tokenInput.focus();
+  }
+})();
+</script>
+</body>
+</html>
