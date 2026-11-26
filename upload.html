@@ -1,97 +1,120 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>上传图片</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>问题上报 · 小区物业管理问题汇总</title>
 
-<!-- ============================================================================
-     CONFIG 区块 —— 只需要填写下面两个值，其余保持默认即可
-
-     1) SUPABASE_URL      Supabase 后台 -> Project Settings -> API -> Project URL
-                           形如 https://abcdefghijklmnop.supabase.co
-     2) SUPABASE_ANON_KEY Supabase 后台 -> Project Settings -> API -> anon public
-                           一长串以 eyJ 开头的字符串（注意不是 service_role）
-     ========================================================================= -->
+<!-- ============================ CONFIG 区块开始 ============================ -->
 <script>
+/* 部署到自己的 Supabase 项目时，只需修改这里的三项配置 */
 const CONFIG = {
   SUPABASE_URL: 'https://jcaexhqpmbucaezwoczx.supabase.co',
-
   SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpjYWV4aHFwbWJ1Y2FlendvY3p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTU1NzQxOTMsImV4cCI6MjExMTE1MDE5M30.b5GKakyaNMCHxswcq3nqm-4wHpuNKHN_AAI1iTpg-8o',
+  BUCKET: 'uploads',
 
-  // 以下一般不需要修改
-  BUCKET: 'uploads',                 // 存储桶名称，须与 supabase_schema.sql 一致
-  MAX_FILE_SIZE: 10 * 1024 * 1024,   // 单文件上限 10MB，与桶设置一致
-  MAX_EDGE: 1920,                    // 压缩后最长边（像素）
-  JPEG_QUALITY: 0.82                 // 压缩质量 0~1
+  /* 上传参数 */
+  MAX_FILE_SIZE: 10 * 1024 * 1024,   // 10MB
+  MAX_EDGE: 1920,                    // 压缩后最长边
+  JPEG_QUALITY: 0.82,
+
+  /* 描述字数限制 */
+  DESC_MIN: 5,
+  DESC_MAX: 500,
+
+  /* 四类问题分类（顺序即下拉顺序） */
+  CATEGORY_ORDER: ['停车管理', '卫生问题', '安全隐患', '其他问题']
 };
 </script>
 <!-- ============================ CONFIG 区块结束 ============================ -->
 
 <style>
   :root{
-    --bg:#f5f6f8; --card:#ffffff; --text:#1d2129; --sub:#86909c;
-    --line:#e5e6eb; --primary:#3f7cff; --primary-dark:#2f66e0;
-    --ok:#00b42a; --warn:#ff7d00; --err:#f53f3f; --radius:12px;
+    --bg:#f5f6f8; --card:#ffffff; --line:#e5e7eb; --text:#1d1f23; --sub:#6b7280;
+    --primary:#3f7cff; --primary-dark:#2f66e0; --ok:#0a7a2a; --err:#b32a2a;
+    --warn:#a85b00; --radius:14px;
   }
   *{box-sizing:border-box;}
   body{
-    margin:0; background:var(--bg); color:var(--text); line-height:1.6;
-    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.6; padding:28px 16px 48px;
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",Arial,sans-serif;
     -webkit-font-smoothing:antialiased;
   }
-  .wrap{max-width:720px; margin:0 auto; padding:36px 20px 80px;}
-  header{display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:20px;}
-  h1{font-size:21px; margin:0; letter-spacing:.4px;}
-  header a{font-size:13px; color:var(--primary); text-decoration:none;}
+  .wrap{max-width:640px; margin:0 auto;}
+  header{display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:20px;}
+  h1{font-size:22px; margin:0; letter-spacing:.4px;}
+  .sub-line{margin:6px 0 0; font-size:13px; color:var(--sub);}
+  header a{font-size:13.5px; color:var(--primary); text-decoration:none; white-space:nowrap; padding-top:4px;}
   header a:hover{text-decoration:underline;}
+
   .card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:22px;}
+
   label.field{display:block; font-size:12.5px; font-weight:600; color:var(--sub); margin-bottom:8px; letter-spacing:.4px;}
-  select{
-    width:100%; padding:11px 12px; font-size:15px; color:var(--text); background:#fff;
-    border:1px solid var(--line); border-radius:8px; outline:none; appearance:none;
+  label.field .req{color:#e5484d; font-style:normal; margin-left:2px;}
+
+  .select{
+    width:100%; padding:11px 36px 11px 12px; font-size:15px; font-family:inherit; color:var(--text);
+    background:#fff; border:1px solid var(--line); border-radius:9px; outline:none; appearance:none;
     background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2386909c' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
     background-repeat:no-repeat; background-position:right 14px center;
   }
-  select:focus{border-color:var(--primary); box-shadow:0 0 0 3px rgba(63,124,255,.12);}
-  select:disabled{background-color:#f7f8fa; color:var(--sub);}
-  .drop{
-    margin-top:20px; padding:34px 16px; text-align:center; cursor:pointer;
-    border:1.5px dashed #c9cdd4; border-radius:var(--radius); background:#fafbfc;
-    transition:border-color .18s, background .18s;
+  .select:focus{border-color:var(--primary);}
+
+  textarea{
+    width:100%; min-height:96px; resize:vertical; padding:11px 12px; font-size:14.5px; line-height:1.65;
+    font-family:inherit; color:var(--text); border:1px solid var(--line); border-radius:9px; outline:none;
   }
-  .drop:hover,.drop.over{border-color:var(--primary); background:rgba(63,124,255,.04);}
-  .drop strong{display:block; font-size:15px; margin-bottom:5px;}
+  textarea:focus{border-color:var(--primary);}
+  textarea.invalid{border-color:#e5484d; background:rgba(229,72,77,.03);}
+  .counter{margin-top:6px; font-size:12px; color:var(--sub); text-align:right;}
+  .counter.over{color:var(--err); font-weight:600;}
+
+  .drop{
+    margin-top:0; padding:30px 16px; text-align:center; cursor:pointer;
+    border:1.5px dashed #c9cdd4; border-radius:var(--radius); background:#fafbfc; transition:.15s;
+  }
+  .drop:hover, .drop.over{border-color:var(--primary); background:rgba(63,124,255,.04);}
+  .drop strong{display:block; font-size:15px; margin-bottom:5px; font-weight:600;}
   .drop span{font-size:12.5px; color:var(--sub);}
   #fileInput{display:none;}
-  .list{margin-top:18px; display:flex; flex-direction:column; gap:10px;}
-  .item{
-    display:flex; align-items:center; gap:12px; padding:10px 12px;
+
+  .preview{
+    display:flex; align-items:center; gap:12px; margin-top:12px; padding:10px 12px;
     border:1px solid var(--line); border-radius:10px; background:#fff;
   }
-  .item .thumb{
-    width:52px; height:52px; flex:0 0 52px; object-fit:cover;
-    border-radius:8px; background:#f2f3f5;
+  .preview img{width:64px; height:64px; flex:0 0 64px; object-fit:cover; border-radius:8px; background:#f2f3f5;}
+  .preview .meta{flex:1 1 auto; min-width:0;}
+  .preview .name{font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .preview .size{font-size:12px; color:var(--sub);}
+  .preview .remove{
+    flex:0 0 auto; border:1px solid var(--line); background:#fff; color:var(--sub);
+    font-size:12.5px; padding:5px 10px; border-radius:7px; cursor:pointer; font-family:inherit;
   }
-  .item .meta{flex:1 1 auto; min-width:0;}
-  .item .name{
-    font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  .preview .remove:hover{border-color:#e5484d; color:#e5484d;}
+
+  .captcha{
+    margin-top:20px; padding:14px; border:1px solid var(--line); border-radius:10px; background:#fafbfc;
   }
-  .item .hint{
-    font-size:12px; color:var(--sub); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  .captcha-row{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px;}
+  .captcha-q{font-size:17px; font-weight:600; letter-spacing:1px; font-variant-numeric:tabular-nums;}
+  .captcha-q.loading{font-size:14px; font-weight:400; color:var(--sub); letter-spacing:0;}
+  .refresh{
+    border:1px solid var(--line); background:#fff; color:var(--primary); font-size:12.5px;
+    padding:5px 12px; border-radius:7px; cursor:pointer; font-family:inherit; white-space:nowrap;
   }
-  .item .bar{
-    height:4px; margin-top:7px; border-radius:2px; background:#eef0f3; overflow:hidden; visibility:hidden;
+  .refresh:hover:not(:disabled){border-color:var(--primary);}
+  .refresh:disabled{opacity:.5; cursor:not-allowed;}
+  .captcha input{
+    width:100%; padding:10px 12px; font-size:15px; font-family:inherit; color:var(--text);
+    border:1px solid var(--line); border-radius:9px; outline:none; background:#fff;
   }
-  .item .bar > i{
-    display:block; height:100%; width:0; border-radius:2px; background:var(--primary);
-    transition:width .18s linear;
+  .captcha input:focus{border-color:var(--primary);}
+
+  .note{
+    margin-top:16px; padding:10px 12px; border-radius:9px; font-size:12.5px; line-height:1.7;
+    background:rgba(255,125,0,.07); border:1px solid rgba(255,125,0,.25); color:var(--warn);
   }
-  .item .state{flex:0 0 auto; font-size:12.5px; color:var(--sub); text-align:right; min-width:64px;}
-  .item[data-status="done"]{border-color:rgba(0,180,42,.35); background:rgba(0,180,42,.045);}
-  .item[data-status="done"] .state{color:var(--ok); font-weight:600;}
-  .item[data-status="error"]{border-color:rgba(245,63,63,.35); background:rgba(245,63,63,.04);}
-  .item[data-status="error"] .state{color:var(--err); font-weight:600;}
+
   .actions{display:flex; gap:10px; margin-top:20px;}
   .btn{
     flex:1 1 0; padding:11px 16px; font-size:14.5px; border-radius:9px; cursor:pointer;
@@ -102,522 +125,605 @@ const CONFIG = {
   .btn.ghost{background:#fff; color:var(--text); border-color:var(--line);}
   .btn.ghost:hover:not(:disabled){border-color:#c9cdd4;}
   .btn:disabled{opacity:.45; cursor:not-allowed;}
-  .banner{
-    padding:12px 14px; border-radius:10px; font-size:13px; margin-bottom:16px;
-    border:1px solid var(--line); background:#fff; color:var(--sub);
-  }
+
+  .progress{margin-top:16px;}
+  .bar{height:6px; border-radius:3px; background:#eef0f3; overflow:hidden;}
+  .bar > i{display:block; height:100%; width:0; border-radius:3px; background:var(--primary); transition:width .18s linear;}
+  .ptext{margin-top:7px; font-size:12.5px; color:var(--sub); text-align:right;}
+
+  .result{margin-top:16px; padding:14px; border-radius:10px; font-size:13.5px; border:1px solid var(--line); background:#f7f8fa;}
+  .result.ok{background:rgba(0,180,42,.06); border-color:rgba(0,180,42,.3);}
+  .result.err{background:rgba(245,63,63,.05); border-color:rgba(245,63,63,.28);}
+  .result .title{font-weight:600; margin-bottom:6px;}
+  .result.ok .title{color:var(--ok);}
+  .result.err .title{color:var(--err);}
+  .result .code{font-size:12px; color:var(--sub); margin-top:4px;}
+  .result .thumb{width:100%; max-width:220px; border-radius:9px; margin-top:10px; display:block;}
+
+  .banner{margin-bottom:16px; padding:12px 14px; border-radius:10px; font-size:13px; border:1px solid var(--line); background:#fff; color:var(--sub);}
   .banner.err{background:rgba(245,63,63,.06); border-color:rgba(245,63,63,.3); color:#b32a2a;}
   .banner.warn{background:rgba(255,125,0,.07); border-color:rgba(255,125,0,.3); color:#a85b00;}
-  .banner.ok{background:rgba(0,180,42,.06); border-color:rgba(0,180,42,.3); color:#0a7a2a;}
   .banner code{background:rgba(0,0,0,.05); padding:1px 5px; border-radius:4px; font-size:12px;}
-  .summary{
-    margin-top:18px; padding:12px 14px; border-radius:10px; font-size:13.5px;
-    border:1px solid var(--line); background:#f7f8fa;
-  }
-  .summary.ok{background:rgba(0,180,42,.06); border-color:rgba(0,180,42,.3); color:#0a7a2a;}
-  .summary.warn{background:rgba(255,125,0,.07); border-color:rgba(255,125,0,.3); color:#a85b00;}
-  .footnote{margin-top:16px; font-size:12px; color:var(--sub); text-align:center;}
+
+  .footnote{margin-top:18px; font-size:12px; color:var(--sub); text-align:center; line-height:1.8;}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <h1>上传图片</h1>
-    <a href="./browse.html">查看全部图片 &rarr;</a>
+    <div>
+      <h1>问题上报</h1>
+      <p class="sub-line">上传现场照片并填写问题描述，物业将据此跟进处理</p>
+    </div>
+    <a href="./browse.html">查看已上报问题 &rarr;</a>
   </header>
 
   <div id="banner" class="banner" hidden></div>
 
   <section class="card">
-    <label class="field" for="categorySelect">选择选项</label>
-    <select id="categorySelect" disabled>
+    <label class="field" for="categorySelect">问题分类<i class="req">*</i></label>
+    <select id="categorySelect" class="select" disabled>
       <option value="">加载中…</option>
     </select>
 
+    <label class="field" for="descInput" style="margin-top:18px;">问题描述<i class="req">*</i></label>
+    <textarea id="descInput" maxlength="500"
+      placeholder="请写明问题位置与具体情况，例如：3 号楼地下车库入口消防通道长期被车辆占用"></textarea>
+    <div class="counter"><span id="descCount">0</span> / 500 字（至少 5 字）</div>
+
+    <label class="field" style="margin-top:18px;">现场照片<i class="req">*</i></label>
     <div class="drop" id="drop">
-      <strong>点击选择图片，或把图片拖到这里</strong>
+      <strong>点击选择照片，或把照片拖到这里</strong>
       <span>支持 JPG / PNG / WebP / GIF，单张不超过 10MB，上传前自动压缩</span>
     </div>
-    <input type="file" id="fileInput" accept="image/*" multiple>
+    <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp,image/gif">
 
-    <div id="list" class="list"></div>
-
-    <div class="actions">
-      <button id="uploadBtn" class="btn primary" disabled>开始上传</button>
-      <button id="clearBtn" class="btn ghost" disabled>清空列表</button>
+    <div id="preview" class="preview" hidden>
+      <img id="previewImg" alt="待上传照片预览">
+      <div class="meta">
+        <div class="name" id="previewName"></div>
+        <div class="size" id="previewSize"></div>
+      </div>
+      <button type="button" class="remove" id="removeFile">移除</button>
     </div>
 
-    <div id="summary" class="summary" hidden></div>
+    <div class="captcha">
+      <div class="captcha-row">
+        <span class="captcha-q loading" id="captchaQuestion">验证码加载中…</span>
+        <button type="button" class="refresh" id="captchaRefresh">换一题</button>
+      </div>
+      <input type="text" id="captchaAnswer" inputmode="numeric" autocomplete="off"
+        maxlength="6" placeholder="请输入计算结果">
+    </div>
+
+    <div class="note">提示：图片中可能含他人隐私（如门牌号、车牌、人脸），请谨慎上传，请勿上传与小区问题无关的内容。</div>
+
+    <div class="actions">
+      <button type="button" class="btn primary" id="submitBtn" disabled>提交问题</button>
+      <button type="button" class="btn ghost" id="resetBtn">重置</button>
+    </div>
+
+    <div class="progress" id="progressWrap" hidden>
+      <div class="bar"><i id="progressBar"></i></div>
+      <div class="ptext" id="progressText">准备提交…</div>
+    </div>
+
+    <div class="result" id="result" hidden></div>
   </section>
 
-  <div class="footnote">图片会压缩到最长边 1920px 后上传，公开可见</div>
+  <div class="footnote">
+    提交内容公开可见 · 同一网络 1 小时内最多提交 20 次<br>
+    每次提交需完成一次性验证码，用于防止恶意刷屏
+  </div>
 </div>
 
 <script src="https://fastly.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-/* ---------------- 基础工具 ---------------- */
-const $ = function (sel) { return document.querySelector(sel); };
-const bannerEl = $('#banner');
-const categorySelect = $('#categorySelect');
-const dropEl = $('#drop');
-const fileInput = $('#fileInput');
-const listEl = $('#list');
-const uploadBtn = $('#uploadBtn');
-const clearBtn = $('#clearBtn');
-const summaryEl = $('#summary');
+(function () {
+  'use strict';
 
-let db = null;
-let items = [];          // 待上传队列
-let nodes = {};          // key -> DOM 引用
-let uploading = false;
-let bannerLocked = false; // 配置类提示常驻，不被后续提示覆盖
-
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, function (c) {
-    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
-  });
-}
-
-function formatBytes(n) {
-  if (!n && n !== 0) return '-';
-  if (n < 1024) return n + ' B';
-  if (n < 1048576) return (n / 1024).toFixed(1) + ' KB';
-  return (n / 1048576).toFixed(2) + ' MB';
-}
-
-function uuid() {
-  if (window.crypto && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-    const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : ((r & 0x3) | 0x8);
-    return v.toString(16);
-  });
-}
-
-function showBanner(html, type, lock) {
-  bannerEl.hidden = false;
-  bannerEl.className = 'banner' + (type ? ' ' + type : '');
-  bannerEl.innerHTML = html;
-  if (lock) bannerLocked = true;
-}
-
-function ensureClient() {
-  if (!CONFIG.SUPABASE_URL || !CONFIG.SUPABASE_ANON_KEY) return null;
-  if (!db) db = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
-  return db;
-}
-
-function friendlyError(err) {
-  const msg = (err && err.message) ? err.message : String(err);
-  if (/row-level security|violates row-level/i.test(msg)) {
-    return '被数据库安全策略拒绝（请确认已执行 supabase_schema.sql，且上传的是图片、大小不超过 10MB）';
-  }
-  if (/exceeded the maximum allowed size|too large|EntityTooLarge|maximum allowed size/i.test(msg)) {
-    return '文件超过 10MB 上限';
-  }
-  if (/mime|content type|not allowed/i.test(msg)) return '文件类型不被允许（仅支持 jpg/png/webp/gif）';
-  if (/Bucket not found/i.test(msg)) return '存储桶 uploads 不存在，请先执行 supabase_schema.sql';
-  if (/Failed to fetch|network|NetworkError/i.test(msg)) return '网络请求失败，请检查网络或 Supabase 项目地址是否正确';
-  return msg;
-}
-
-
-/* ---------------- 初始化 ---------------- */
-async function loadCategories() {
-  const client = ensureClient();
-  if (!client) {
-    showBanner('尚未配置 Supabase。请用文本编辑器打开本文件，找到顶部的 <code>CONFIG</code> 区块，' +
-               '填写 <code>SUPABASE_URL</code> 与 <code>SUPABASE_ANON_KEY</code>，保存后刷新页面。', 'err', true);
-    return;
-  }
-
-  const res = await client
-    .from('categories')
-    .select('id, name, sort_order')
-    .eq('is_active', true)
-    .order('sort_order', { ascending: true })
-    .order('id', { ascending: true });
-
-  if (res.error) {
-    categorySelect.innerHTML = '<option value="">选项加载失败</option>';
-    showBanner('读取选项失败：' + escapeHtml(friendlyError(res.error)) +
-               '<br>请确认已在 Supabase 的 SQL Editor 中执行 <code>supabase_schema.sql</code>。', 'err', true);
-    return;
-  }
-
-  const rows = res.data || [];
-  if (rows.length === 0) {
-    categorySelect.innerHTML = '<option value="">暂无选项</option>';
-    showBanner('categories 表里没有任何选项。请在 SQL Editor 中执行：<br>' +
-               '<code>insert into public.categories (name, sort_order) values (\'风景\', 10);</code>', 'warn', true);
-    return;
-  }
-
-  let html = '<option value="">请选择一个选项…</option>';
-  rows.forEach(function (c) {
-    html += '<option value="' + c.id + '">' + escapeHtml(c.name) + '</option>';
-  });
-  categorySelect.innerHTML = html;
-  categorySelect.dataset.ready = '1';
-  categorySelect.disabled = false;
-  updateButtons();
-}
-
-
-/* ---------------- 选择文件 ---------------- */
-function handleFiles(fileList) {
-  const files = Array.prototype.slice.call(fileList || []);
-  const rejected = [];
-  let added = 0;
-
-  files.forEach(function (f) {
-    if (!f.type || f.type.indexOf('image/') !== 0) {
-      rejected.push(f.name + '（不是图片）');
-      return;
-    }
-    if (f.size > CONFIG.MAX_FILE_SIZE) {
-      rejected.push(f.name + '（' + formatBytes(f.size) + '，超过 10MB）');
-      return;
-    }
-    items.push({
-      key: uuid(),
-      file: f,
-      name: f.name,
-      status: 'ready',
-      progress: 0,
-      note: formatBytes(f.size) + ' · 待上传',
-      previewUrl: URL.createObjectURL(f)
-    });
-    added += 1;
-  });
-
-  if (rejected.length) {
-    showBanner('已跳过 ' + rejected.length + ' 个文件：' + escapeHtml(rejected.join('；')), 'warn');
-  } else if (added > 0 && !bannerLocked) {
-    bannerEl.hidden = true;
-  }
-
-  renderList();
-}
-
-function renderList() {
-  listEl.innerHTML = '';
-  nodes = {};
-  items.forEach(function (item) {
-    const root = document.createElement('div');
-    root.className = 'item';
-    root.innerHTML =
-      '<img class="thumb" alt="">' +
-      '<div class="meta">' +
-        '<div class="name"></div>' +
-        '<div class="hint"></div>' +
-        '<div class="bar"><i></i></div>' +
-      '</div>' +
-      '<div class="state"></div>';
-
-    const thumb = root.querySelector('.thumb');
-    thumb.src = item.previewUrl;
-    root.querySelector('.name').textContent = item.name;
-
-    nodes[item.key] = {
-      root: root,
-      hint: root.querySelector('.hint'),
-      bar: root.querySelector('.bar'),
-      fill: root.querySelector('.bar > i'),
-      state: root.querySelector('.state')
-    };
-
-    listEl.appendChild(root);
-    updateItemView(item);
-  });
-  updateButtons();
-}
-
-function updateItemView(item) {
-  const n = nodes[item.key];
-  if (!n) return;
-
-  n.root.dataset.status = item.status;
-  n.hint.textContent = item.note;
-  n.hint.title = item.note;
-
-  const showBar = (item.status === 'compressing' || item.status === 'uploading');
-  n.bar.style.visibility = showBar ? 'visible' : 'hidden';
-  n.fill.style.width = Math.round(Math.max(0, Math.min(1, item.progress)) * 100) + '%';
-
-  const labels = {
-    ready: '待上传',
-    compressing: '压缩中',
-    uploading: '上传 ' + Math.round(item.progress * 100) + '%',
-    saving: '写入记录',
-    done: '已完成',
-    error: '失败'
+  /* ---------------------------------------------------------------- 基础工具 */
+  var $ = function (id) { return document.getElementById(id); };
+  var el = {
+    banner: $('banner'),
+    categorySelect: $('categorySelect'),
+    descInput: $('descInput'),
+    descCount: $('descCount'),
+    drop: $('drop'),
+    fileInput: $('fileInput'),
+    preview: $('preview'),
+    previewImg: $('previewImg'),
+    previewName: $('previewName'),
+    previewSize: $('previewSize'),
+    removeFile: $('removeFile'),
+    captchaQuestion: $('captchaQuestion'),
+    captchaRefresh: $('captchaRefresh'),
+    captchaAnswer: $('captchaAnswer'),
+    submitBtn: $('submitBtn'),
+    resetBtn: $('resetBtn'),
+    progressWrap: $('progressWrap'),
+    progressBar: $('progressBar'),
+    progressText: $('progressText'),
+    result: $('result')
   };
-  n.state.textContent = labels[item.status] || item.status;
-}
 
-function updateButtons() {
-  const hasPending = items.some(function (i) { return i.status === 'ready' || i.status === 'error'; });
-  const ready = categorySelect.dataset.ready === '1';
-  uploadBtn.disabled = uploading || !hasPending || !categorySelect.value;
-  clearBtn.disabled = uploading || items.length === 0;
-  categorySelect.disabled = uploading || !ready;
-}
+  var ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+  var FUNCTIONS_BASE = String(CONFIG.SUPABASE_URL || '').replace(/\/+$/, '') + '/functions/v1';
 
+  var state = {
+    categories: [],
+    file: null,        // 原始文件
+    blob: null,        // 压缩后的数据
+    fileName: '',
+    previewUrl: '',
+    captchaToken: '',
+    captchaLoading: false,
+    submitting: false
+  };
 
-/* ---------------- 压缩 ---------------- */
-function loadImage(file) {
-  return new Promise(function (resolve, reject) {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = function () { URL.revokeObjectURL(url); resolve(img); };
-    img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('图片无法解码')); };
-    img.src = url;
-  });
-}
-
-async function compress(file) {
-  // GIF 保留原样，避免动图丢帧
-  if (file.type === 'image/gif') {
-    return { blob: file, ext: 'gif', mime: 'image/gif', width: null, height: null };
+  function showBanner(text, kind) {
+    el.banner.hidden = false;
+    el.banner.className = 'banner' + (kind ? ' ' + kind : '');
+    el.banner.innerHTML = text;
+  }
+  function hideBanner() {
+    el.banner.hidden = true;
+    el.banner.innerHTML = '';
+  }
+  function fmtSize(bytes) {
+    if (!bytes && bytes !== 0) return '';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1024 / 1024).toFixed(2) + ' MB';
+  }
+  function charLength(text) {
+    return Array.from(String(text || '')).length;
+  }
+  function setResult(html, kind) {
+    el.result.hidden = false;
+    el.result.className = 'result' + (kind ? ' ' + kind : '');
+    el.result.innerHTML = html;
+  }
+  function clearResult() {
+    el.result.hidden = true;
+    el.result.innerHTML = '';
   }
 
-  const img = await loadImage(file);
-  const w0 = img.naturalWidth || img.width;
-  const h0 = img.naturalHeight || img.height;
-  if (!w0 || !h0) throw new Error('图片尺寸异常');
+  /* ------------------------------------------------------------ Supabase 客户端 */
+  var db = null;
+  function initClient() {
+    if (!CONFIG.SUPABASE_URL || !CONFIG.SUPABASE_ANON_KEY ||
+        CONFIG.SUPABASE_URL.indexOf('YOUR-') !== -1 ||
+        CONFIG.SUPABASE_ANON_KEY.indexOf('YOUR-') !== -1) {
+      showBanner('未配置 SUPABASE_URL 与 SUPABASE_ANON_KEY，请先补全页面头部的 CONFIG 区块。', 'err');
+      return false;
+    }
+    if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+      showBanner('Supabase JS SDK 加载失败，请检查网络后刷新页面。', 'err');
+      return false;
+    }
+    db = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+    return true;
+  }
 
-  const scale = Math.min(1, CONFIG.MAX_EDGE / Math.max(w0, h0));
-  const w = Math.max(1, Math.round(w0 * scale));
-  const h = Math.max(1, Math.round(h0 * scale));
+  /* --------------------------------------------------------------- 分类加载 */
+  function loadCategories() {
+    return db.from('categories')
+      .select('id,name,sort_order')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true })
+      .then(function (res) {
+        if (res.error) {
+          el.categorySelect.innerHTML = '<option value="">加载失败</option>';
+          showBanner('分类加载失败：' + res.error.message + '。请确认已在 Supabase 执行 <code>migration_v2.sql</code>。', 'err');
+          return;
+        }
+        var rows = res.data || [];
+        var byName = {};
+        rows.forEach(function (r) { byName[r.name] = r; });
 
-  const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#ffffff';          // 透明背景填白，避免转 JPEG 后变黑
-  ctx.fillRect(0, 0, w, h);
-  ctx.drawImage(img, 0, 0, w, h);
+        var ordered = [];
+        CONFIG.CATEGORY_ORDER.forEach(function (name) {
+          if (byName[name]) ordered.push(byName[name]);
+        });
+        state.categories = ordered;
 
-  const blob = await new Promise(function (resolve) {
-    canvas.toBlob(resolve, 'image/jpeg', CONFIG.JPEG_QUALITY);
-  });
-  if (!blob) throw new Error('压缩失败');
+        if (ordered.length === 0) {
+          el.categorySelect.innerHTML = '<option value="">暂无可选分类</option>';
+          showBanner('未读到四类问题分类，请先在 Supabase 执行 <code>migration_v2.sql</code>。', 'err');
+          return;
+        }
 
-  return { blob: blob, ext: 'jpg', mime: 'image/jpeg', width: w, height: h };
-}
+        var html = '<option value="">请选择问题分类</option>';
+        ordered.forEach(function (c) {
+          html += '<option value="' + c.id + '">' + escapeHtml(c.name) + '</option>';
+        });
+        el.categorySelect.innerHTML = html;
+        el.categorySelect.disabled = false;
 
+        var missing = CONFIG.CATEGORY_ORDER.filter(function (n) { return !byName[n]; });
+        if (missing.length) {
+          showBanner('分类数据不完整，缺少：' + missing.join('、') + '。请执行 <code>migration_v2.sql</code> 后刷新页面。', 'warn');
+        }
+        refreshSubmitState();
+      });
+  }
 
-/* ---------------- 上传（带真实进度） ---------------- */
-function uploadWithProgress(path, blob, filename, onProgress) {
-  return new Promise(function (resolve, reject) {
-    const base = CONFIG.SUPABASE_URL.replace(/\/+$/, '');
-    const encodedPath = path.split('/').map(encodeURIComponent).join('/');
-    const url = base + '/storage/v1/object/' + CONFIG.BUCKET + '/' + encodedPath;
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
 
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', url, true);
+  /* --------------------------------------------------------------- 描述计数 */
+  function updateDescCount() {
+    var n = charLength(el.descInput.value);
+    el.descCount.textContent = n;
+    var over = n > 0 && (n < CONFIG.DESC_MIN || n > CONFIG.DESC_MAX);
+    el.descCount.parentNode.className = 'counter' + (over ? ' over' : '');
+    el.descInput.classList.toggle('invalid', over);
+  }
+
+  /* --------------------------------------------------------------- 图片处理 */
+  function loadImageElement(file) {
+    return new Promise(function (resolve, reject) {
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function () { resolve({ img: img, url: url }); };
+      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('图片解析失败，请更换图片')); };
+      img.src = url;
+    });
+  }
+
+  function canvasToBlob(canvas, type, quality) {
+    return new Promise(function (resolve, reject) {
+      canvas.toBlob(function (blob) {
+        if (blob) resolve(blob);
+        else reject(new Error('图片压缩失败，请更换图片'));
+      }, type, quality);
+    });
+  }
+
+  function baseName(name) {
+    var n = String(name || 'image');
+    var i = n.lastIndexOf('.');
+    return i > 0 ? n.slice(0, i) : n;
+  }
+
+  function prepareImage(file) {
+    if (ALLOWED_MIME.indexOf(file.type) === -1) {
+      return Promise.reject(new Error('仅支持 JPG / PNG / WebP / GIF 格式的图片'));
+    }
+    if (file.size > CONFIG.MAX_FILE_SIZE) {
+      return Promise.reject(new Error('图片大小 ' + fmtSize(file.size) + ' 超过 10MB 上限'));
+    }
+    // GIF 保留原文件，避免动图丢失
+    if (file.type === 'image/gif') {
+      return Promise.resolve({ blob: file, name: baseName(file.name) + '.gif' });
+    }
+    return loadImageElement(file).then(function (r) {
+      var img = r.img;
+      var w = img.naturalWidth || img.width;
+      var h = img.naturalHeight || img.height;
+      if (!w || !h) {
+        URL.revokeObjectURL(r.url);
+        throw new Error('图片尺寸读取失败，请更换图片');
+      }
+      var scale = Math.min(1, CONFIG.MAX_EDGE / Math.max(w, h));
+      var tw = Math.max(1, Math.round(w * scale));
+      var th = Math.max(1, Math.round(h * scale));
+
+      var canvas = document.createElement('canvas');
+      canvas.width = tw;
+      canvas.height = th;
+      var ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, tw, th);
+      ctx.drawImage(img, 0, 0, tw, th);
+      URL.revokeObjectURL(r.url);
+
+      return canvasToBlob(canvas, 'image/jpeg', CONFIG.JPEG_QUALITY).then(function (blob) {
+        if (blob.size > CONFIG.MAX_FILE_SIZE) {
+          throw new Error('压缩后仍超过 10MB，请更换更小的图片');
+        }
+        return { blob: blob, name: baseName(file.name) + '.jpg' };
+      });
+    });
+  }
+
+  function clearFile() {
+    if (state.previewUrl) {
+      URL.revokeObjectURL(state.previewUrl);
+      state.previewUrl = '';
+    }
+    state.file = null;
+    state.blob = null;
+    state.fileName = '';
+    el.fileInput.value = '';
+    el.preview.hidden = true;
+    el.previewImg.removeAttribute('src');
+    refreshSubmitState();
+  }
+
+  function handleFile(file) {
+    if (!file) return;
+    el.fileInput.value = '';
+    clearResult();
+    hideBanner();
+    state.file = file;
+    el.preview.hidden = false;
+    el.previewName.textContent = file.name;
+    el.previewSize.textContent = fmtSize(file.size) + ' · 处理中…';
+
+    prepareImage(file).then(function (out) {
+      state.blob = out.blob;
+      state.fileName = out.name;
+      if (state.previewUrl) URL.revokeObjectURL(state.previewUrl);
+      state.previewUrl = URL.createObjectURL(out.blob);
+      el.previewImg.src = state.previewUrl;
+      el.previewSize.textContent = fmtSize(file.size) + ' → ' + fmtSize(out.blob.size) + '（已压缩）';
+      refreshSubmitState();
+    }).catch(function (err) {
+      clearFile();
+      showBanner(err.message || '图片处理失败，请更换图片', 'err');
+    });
+  }
+
+  /* --------------------------------------------------------------- 验证码 */
+  function setCaptchaQuestion(text, loading) {
+    el.captchaQuestion.textContent = text;
+    el.captchaQuestion.className = 'captcha-q' + (loading ? ' loading' : '');
+  }
+
+  function refreshCaptcha() {
+    if (state.captchaLoading) return;
+    state.captchaLoading = true;
+    state.captchaToken = '';
+    el.captchaRefresh.disabled = true;
+    setCaptchaQuestion('验证码加载中…', true);
+    refreshSubmitState();
+
+    fetch(FUNCTIONS_BASE + '/captcha', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': CONFIG.SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + CONFIG.SUPABASE_ANON_KEY
+      },
+      body: '{}'
+    }).then(function (res) {
+      return res.json().then(function (data) { return { ok: res.ok, data: data }; });
+    }).then(function (r) {
+      if (!r.ok || !r.data || !r.data.ok) {
+        throw new Error((r.data && r.data.message) || '验证码加载失败');
+      }
+      state.captchaToken = r.data.token;
+      setCaptchaQuestion(r.data.question, false);
+    }).catch(function (err) {
+      state.captchaToken = '';
+      setCaptchaQuestion('验证码加载失败，请点「换一题」重试', true);
+      showBanner('验证码加载失败：' + (err.message || '网络异常') +
+        '。请确认已部署 <code>captcha</code> Edge Function。', 'warn');
+    }).then(function () {
+      state.captchaLoading = false;
+      el.captchaRefresh.disabled = false;
+      refreshSubmitState();
+    });
+  }
+
+  /* --------------------------------------------------------------- 表单状态 */
+  function validateDescription(silent) {
+    var text = el.descInput.value.trim();
+    var n = charLength(text);
+    var ok = n >= CONFIG.DESC_MIN && n <= CONFIG.DESC_MAX;
+    if (!silent) el.descInput.classList.toggle('invalid', !ok && el.descInput.value.length > 0);
+    return ok;
+  }
+
+  function canSubmit() {
+    return !!state.categorySelect_OK && !!state.blob && !state.submitting &&
+      !state.captchaLoading && !!state.captchaToken &&
+      el.captchaAnswer.value.trim().length > 0 &&
+      validateDescription(true);
+  }
+
+  function refreshSubmitState() {
+    // 记录分类是否已选，供 canSubmit 使用
+    state.categorySelect_OK = !!el.categorySelect.value;
+    el.submitBtn.disabled = !canSubmit();
+  }
+
+  /* --------------------------------------------------------------- 提交 */
+  function resetForm(keepBanner) {
+    el.categorySelect.value = '';
+    el.descInput.value = '';
+    el.captchaAnswer.value = '';
+    updateDescCount();
+    clearFile();
+    el.progressWrap.hidden = true;
+    el.progressBar.style.width = '0%';
+    el.progressText.textContent = '准备提交…';
+    if (!keepBanner) hideBanner();
+    refreshCaptcha();
+  }
+
+  function submit() {
+    if (state.submitting) return;
+
+    var categoryId = el.categorySelect.value;
+    var description = el.descInput.value.trim();
+    var answer = el.captchaAnswer.value.trim();
+
+    if (!categoryId) { showBanner('请选择问题分类', 'warn'); return; }
+    if (charLength(description) < CONFIG.DESC_MIN) {
+      showBanner('问题描述至少 ' + CONFIG.DESC_MIN + ' 个字', 'warn');
+      el.descInput.focus();
+      return;
+    }
+    if (!state.blob) { showBanner('请选择一张现场照片', 'warn'); return; }
+    if (!state.captchaToken) { showBanner('验证码未就绪，请点「换一题」重试', 'warn'); return; }
+    if (!answer) { showBanner('请填写验证码答案', 'warn'); el.captchaAnswer.focus(); return; }
+
+    state.submitting = true;
+    el.submitBtn.disabled = true;
+    el.resetBtn.disabled = true;
+    clearResult();
+    hideBanner();
+    el.progressWrap.hidden = false;
+    el.progressBar.style.width = '0%';
+    el.progressText.textContent = '正在提交…';
+
+    var fd = new FormData();
+    fd.append('file', state.blob, state.fileName || 'image.jpg');
+    fd.append('category_id', categoryId);
+    fd.append('description', description);
+    fd.append('captcha_token', state.captchaToken);
+    fd.append('captcha_answer', answer);
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', FUNCTIONS_BASE + '/submit');
+    xhr.timeout = 120000;
     xhr.setRequestHeader('apikey', CONFIG.SUPABASE_ANON_KEY);
     xhr.setRequestHeader('Authorization', 'Bearer ' + CONFIG.SUPABASE_ANON_KEY);
-    xhr.setRequestHeader('x-upsert', 'false');
-    xhr.timeout = 120000;
 
     xhr.upload.onprogress = function (e) {
-      if (e.lengthComputable && e.total > 0) onProgress(e.loaded / e.total);
-    };
-    xhr.onload = function () {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        resolve(xhr.responseText);
+      if (e.lengthComputable) {
+        var pct = Math.round((e.loaded / e.total) * 100);
+        el.progressBar.style.width = pct + '%';
+        el.progressText.textContent = '上传中 ' + pct + '%';
       } else {
-        reject(new Error('HTTP ' + xhr.status + ' ' + (xhr.responseText || '')));
+        el.progressText.textContent = '上传中…';
       }
     };
-    xhr.onerror = function () { reject(new Error('Failed to fetch')); };
-    xhr.ontimeout = function () { reject(new Error('上传超时')); };
 
-    const fd = new FormData();
-    fd.append('cacheControl', '31536000');
-    fd.append('', blob, filename);
+    xhr.onload = function () {
+      var data = null;
+      try { data = JSON.parse(xhr.responseText || '{}'); } catch (e) { data = null; }
+      finishSubmit();
+
+      if (xhr.status >= 200 && xhr.status < 300 && data && data.ok) {
+        el.progressBar.style.width = '100%';
+        el.progressText.textContent = '提交完成';
+        var img = data.image || {};
+        var html =
+          '<div class="title">提交成功</div>' +
+          '<div>' + escapeHtml(img.category_name || '') + ' · ' +
+          escapeHtml(img.description || description) + '</div>' +
+          '<div class="code">记录编号 #' + escapeHtml(String(img.id || '')) + '</div>';
+        if (img.public_url) {
+          html += '<img class="thumb" src="' + escapeHtml(img.public_url) + '" alt="已提交照片">';
+        }
+        setResult(html, 'ok');
+
+        el.categorySelect.value = '';
+        el.descInput.value = '';
+        el.captchaAnswer.value = '';
+        updateDescCount();
+        clearFile();
+        refreshCaptcha();
+      } else {
+        var msg = (data && data.message) || ('提交失败（HTTP ' + xhr.status + '）');
+        var code = (data && data.code) || '';
+        setResult('<div class="title">提交失败</div><div>' + escapeHtml(msg) + '</div>' +
+          (code ? '<div class="code">错误码：' + escapeHtml(code) + '</div>' : ''), 'err');
+        el.progressWrap.hidden = true;
+        refreshCaptcha();
+      }
+    };
+
+    xhr.onerror = function () {
+      finishSubmit();
+      setResult('<div class="title">提交失败</div><div>网络异常，请检查网络后重试</div>' +
+        '<div class="code">错误码：NETWORK_ERROR</div>', 'err');
+      el.progressWrap.hidden = true;
+      refreshCaptcha();
+    };
+
+    xhr.ontimeout = function () {
+      finishSubmit();
+      setResult('<div class="title">提交超时</div><div>请稍后重试</div>' +
+        '<div class="code">错误码：TIMEOUT</div>', 'err');
+      el.progressWrap.hidden = true;
+      refreshCaptcha();
+    };
+
     xhr.send(fd);
-  });
-}
 
-function markError(item, msg) {
-  item.status = 'error';
-  item.note = msg;
-  item.progress = 0;
-  updateItemView(item);
-}
-
-async function uploadOne(item, categoryId) {
-  // 1. 压缩
-  item.status = 'compressing';
-  item.progress = 0.05;
-  item.note = '正在压缩…';
-  updateItemView(item);
-
-  let out;
-  try {
-    out = await compress(item.file);
-  } catch (e) {
-    markError(item, '压缩失败：' + (e.message || e));
-    return;
+    function finishSubmit() {
+      state.submitting = false;
+      el.resetBtn.disabled = false;
+      refreshSubmitState();
+    }
   }
 
-  if (out.blob.size > CONFIG.MAX_FILE_SIZE) {
-    markError(item, '压缩后仍有 ' + formatBytes(out.blob.size) + '，超过 10MB 上限');
-    return;
-  }
+  /* --------------------------------------------------------------- 事件绑定 */
+  function bindEvents() {
+    el.categorySelect.addEventListener('change', refreshSubmitState);
 
-  // 2. 上传到存储桶
-  const now = new Date();
-  const path = now.getFullYear() + '/' +
-               String(now.getMonth() + 1).padStart(2, '0') + '/' +
-               uuid() + '.' + out.ext;
-
-  item.status = 'uploading';
-  item.progress = 0.02;
-  item.note = formatBytes(item.file.size) + ' → ' + formatBytes(out.blob.size);
-  updateItemView(item);
-
-  try {
-    await uploadWithProgress(path, out.blob, item.name, function (p) {
-      item.progress = Math.max(0.02, Math.min(0.99, p));
-      updateItemView(item);
+    el.descInput.addEventListener('input', function () {
+      updateDescCount();
+      refreshSubmitState();
     });
-  } catch (e1) {
-    // 服务器已明确返回状态码（如 403 被 RLS 拒绝）时不再重试，直接报错
-    const serverSaid = /^HTTP \d{3}/.test(String(e1 && e1.message));
-    if (serverSaid) {
-      markError(item, '上传失败：' + friendlyError(e1));
+
+    el.drop.addEventListener('click', function () { el.fileInput.click(); });
+    el.drop.addEventListener('dragover', function (e) { e.preventDefault(); el.drop.classList.add('over'); });
+    el.drop.addEventListener('dragleave', function () { el.drop.classList.remove('over'); });
+    el.drop.addEventListener('drop', function (e) {
+      e.preventDefault();
+      el.drop.classList.remove('over');
+      var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) handleFile(f);
+    });
+
+    el.fileInput.addEventListener('change', function () {
+      var f = el.fileInput.files && el.fileInput.files[0];
+      if (f) handleFile(f);
+    });
+
+    el.removeFile.addEventListener('click', function () { clearFile(); });
+
+    el.captchaRefresh.addEventListener('click', function () {
+      el.captchaAnswer.value = '';
+      refreshCaptcha();
+    });
+
+    el.captchaAnswer.addEventListener('input', function () {
+      // 仅保留数字，避免误输
+      var v = el.captchaAnswer.value.replace(/[^\d]/g, '');
+      if (v !== el.captchaAnswer.value) el.captchaAnswer.value = v;
+      refreshSubmitState();
+    });
+    el.captchaAnswer.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); if (!el.submitBtn.disabled) submit(); }
+    });
+
+    el.submitBtn.addEventListener('click', submit);
+    el.resetBtn.addEventListener('click', function () {
+      if (state.submitting) return;
+      clearResult();
+      resetForm(false);
+    });
+  }
+
+  /* ------------------------------------------------------------------- 启动 */
+  function boot() {
+    bindEvents();
+    updateDescCount();
+    if (!initClient()) {
+      setCaptchaQuestion('未配置', true);
       return;
     }
-    // 网络层异常时，回退到官方 SDK 再试一次
-    try {
-      const res = await db.storage.from(CONFIG.BUCKET).upload(path, out.blob, {
-        contentType: out.mime,
-        upsert: false
-      });
-      if (res.error) throw res.error;
-      item.progress = 1;
-      updateItemView(item);
-    } catch (e2) {
-      markError(item, '上传失败：' + friendlyError(e2.error || e2));
-      return;
-    }
+    loadCategories();
+    refreshCaptcha();
+    refreshSubmitState();
   }
 
-  // 3. 写入 images 表
-  item.status = 'saving';
-  item.progress = 1;
-  item.note = formatBytes(out.blob.size) + ' · 正在写入记录…';
-  updateItemView(item);
-
-  let ins;
-  try {
-    ins = await db.from('images').insert({
-      category_id: categoryId,
-      file_path: path,
-      file_name: item.name,
-      mime_type: out.mime,
-      file_size: out.blob.size,
-      width: out.width,
-      height: out.height
-    });
-  } catch (e) {
-    markError(item, '图片已上传但记录写入失败：' + friendlyError(e));
-    return;
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
   }
-
-  if (ins.error) {
-    markError(item, '图片已上传但记录写入失败：' + friendlyError(ins.error));
-    return;
-  }
-
-  item.status = 'done';
-  item.progress = 1;
-  item.note = formatBytes(out.blob.size) + ' · 已保存';
-  updateItemView(item);
-}
-
-
-/* ---------------- 批量上传 ---------------- */
-async function startUpload() {
-  if (uploading) return;
-
-  const categoryId = Number(categorySelect.value);
-  if (!categoryId) {
-    showBanner('请先选择一个选项。', 'warn');
-    return;
-  }
-
-  const targets = items.filter(function (i) {
-    return i.status === 'ready' || i.status === 'error';
-  });
-  if (!targets.length) return;
-
-  uploading = true;
-  summaryEl.hidden = true;
-  bannerEl.hidden = true;
-  updateButtons();
-
-  for (let i = 0; i < targets.length; i++) {
-    try {
-      await uploadOne(targets[i], categoryId);
-    } catch (e) {
-      markError(targets[i], '上传异常：' + friendlyError(e));
-    }
-  }
-
-  uploading = false;
-  updateButtons();
-
-  const ok = targets.filter(function (i) { return i.status === 'done'; }).length;
-  const bad = targets.filter(function (i) { return i.status === 'error'; }).length;
-
-  summaryEl.hidden = false;
-  summaryEl.className = 'summary ' + (bad > 0 ? 'warn' : 'ok');
-  summaryEl.textContent = bad > 0
-    ? '本次上传：成功 ' + ok + ' 张，失败 ' + bad + ' 张。失败原因见上方每一项的说明。'
-    : '本次上传：成功 ' + ok + ' 张，全部完成。可点击右上角「查看全部图片」确认。';
-}
-
-
-/* ---------------- 事件绑定 ---------------- */
-dropEl.addEventListener('click', function () { fileInput.click(); });
-dropEl.addEventListener('dragover', function (e) {
-  e.preventDefault();
-  dropEl.classList.add('over');
-});
-dropEl.addEventListener('dragleave', function () { dropEl.classList.remove('over'); });
-dropEl.addEventListener('drop', function (e) {
-  e.preventDefault();
-  dropEl.classList.remove('over');
-  if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
-    handleFiles(e.dataTransfer.files);
-  }
-});
-fileInput.addEventListener('change', function () {
-  if (fileInput.files && fileInput.files.length) handleFiles(fileInput.files);
-  fileInput.value = '';
-});
-categorySelect.addEventListener('change', updateButtons);
-uploadBtn.addEventListener('click', startUpload);
-clearBtn.addEventListener('click', function () {
-  if (uploading) return;
-  items.forEach(function (i) {
-    if (i.previewUrl) URL.revokeObjectURL(i.previewUrl);
-  });
-  items = [];
-  renderList();
-  summaryEl.hidden = true;
-});
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', loadCategories);
-} else {
-  loadCategories();
-}
+})();
 </script>
 </body>
 </html>
