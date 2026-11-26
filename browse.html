@@ -1,410 +1,521 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>全部图片</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>问题浏览 · 小区物业管理问题汇总</title>
 
-<!-- ============================================================================
-     CONFIG 区块 —— 只需要填写下面两个值（与 upload.html 保持一致）
-
-     1) SUPABASE_URL      Supabase 后台 -> Project Settings -> API -> Project URL
-                           形如 https://abcdefghijklmnop.supabase.co
-     2) SUPABASE_ANON_KEY Supabase 后台 -> Project Settings -> API -> anon public
-                           一长串以 eyJ 开头的字符串（注意不是 service_role）
-     ========================================================================= -->
+<!-- ============================ CONFIG 区块开始 ============================ -->
 <script>
+/* 部署到自己的 Supabase 项目时，只需修改这里的三项配置 */
 const CONFIG = {
   SUPABASE_URL: 'https://jcaexhqpmbucaezwoczx.supabase.co',
-
   SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpjYWV4aHFwbWJ1Y2FlendvY3p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTU1NzQxOTMsImV4cCI6MjExMTE1MDE5M30.b5GKakyaNMCHxswcq3nqm-4wHpuNKHN_AAI1iTpg-8o',
+  BUCKET: 'uploads',
 
-  // 以下一般不需要修改
-  BUCKET: 'uploads',   // 存储桶名称，须与 supabase_schema.sql 一致
-  PAGE_SIZE: 24        // 每次加载数量
+  /* 分页 */
+  PAGE_SIZE: 24,
+
+  /* 四类问题分类（顺序即筛选顺序） */
+  CATEGORY_ORDER: ['停车管理', '卫生问题', '安全隐患', '其他问题']
 };
 </script>
 <!-- ============================ CONFIG 区块结束 ============================ -->
 
 <style>
   :root{
-    --bg:#f5f6f8; --card:#ffffff; --text:#1d2129; --sub:#86909c;
-    --line:#e5e6eb; --primary:#3f7cff; --radius:12px;
+    --bg:#f5f6f8; --card:#ffffff; --line:#e5e7eb; --text:#1d1f23; --sub:#6b7280;
+    --primary:#3f7cff; --ok:#0a7a2a; --err:#b32a2a; --warn:#a85b00; --radius:14px;
   }
   *{box-sizing:border-box;}
-  html,body{height:100%;}
   body{
-    margin:0; background:var(--bg); color:var(--text); line-height:1.6;
-    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.6; padding:28px 16px 56px;
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",Arial,sans-serif;
     -webkit-font-smoothing:antialiased;
   }
-  .wrap{max-width:1120px; margin:0 auto; padding:34px 22px 80px;}
-  header{display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:18px;}
-  h1{font-size:21px; margin:0; letter-spacing:.4px;}
-  header a{font-size:13px; color:var(--primary); text-decoration:none;}
-  header a:hover{text-decoration:underline;}
+  .wrap{max-width:1120px; margin:0 auto;}
 
-  .banner{
-    padding:12px 14px; border-radius:10px; font-size:13px; margin-bottom:16px;
-    border:1px solid var(--line); background:#fff; color:var(--sub);
-  }
+  header{display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:18px;}
+  h1{font-size:22px; margin:0; letter-spacing:.4px;}
+  .sub-line{margin:6px 0 0; font-size:13px; color:var(--sub);}
+  header a{font-size:13.5px; color:#fff; background:var(--primary); text-decoration:none; white-space:nowrap;
+    padding:8px 14px; border-radius:9px; font-weight:600;}
+  header a:hover{background:#2f66e0;}
+
+  .banner{margin-bottom:16px; padding:12px 14px; border-radius:10px; font-size:13px; border:1px solid var(--line); background:#fff; color:var(--sub);}
   .banner.err{background:rgba(245,63,63,.06); border-color:rgba(245,63,63,.3); color:#b32a2a;}
   .banner.warn{background:rgba(255,125,0,.07); border-color:rgba(255,125,0,.3); color:#a85b00;}
   .banner code{background:rgba(0,0,0,.05); padding:1px 5px; border-radius:4px; font-size:12px;}
 
-  .toolbar{
-    display:flex; align-items:center; justify-content:space-between; gap:14px;
-    flex-wrap:wrap; margin-bottom:18px;
-  }
-  .chips{display:flex; gap:8px; flex-wrap:wrap;}
+  .filters{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px;}
   .chip{
-    padding:7px 15px; font-size:13.5px; border-radius:999px; cursor:pointer;
-    border:1px solid var(--line); background:#fff; color:var(--text);
-    transition:.16s; font-family:inherit;
+    padding:7px 15px; font-size:13.5px; border-radius:999px; cursor:pointer; font-family:inherit;
+    border:1px solid var(--line); background:#fff; color:var(--sub); transition:.15s;
   }
-  .chip:hover{border-color:#c9cdd4;}
+  .chip:hover{border-color:#c9cdd4; color:var(--text);}
   .chip.active{background:var(--primary); border-color:var(--primary); color:#fff; font-weight:600;}
-  .count{font-size:12.5px; color:var(--sub);}
 
-  .grid{
-    display:grid; gap:12px;
-    grid-template-columns:repeat(auto-fill, minmax(178px, 1fr));
-  }
-  .cell{
-    position:relative; margin:0; border-radius:10px; overflow:hidden;
-    background:#eef0f3; aspect-ratio:1 / 1; cursor:zoom-in;
-  }
-  .cell img{
-    width:100%; height:100%; object-fit:cover; display:block;
-    transition:transform .32s ease;
-  }
-  .cell:hover img{transform:scale(1.04);}
-  .cell .caption{
-    position:absolute; left:0; right:0; bottom:0;
-    padding:22px 10px 8px; font-size:11.5px; color:#fff;
-    background:linear-gradient(to top, rgba(0,0,0,.62), rgba(0,0,0,0));
-    display:flex; justify-content:space-between; gap:8px;
-    opacity:0; transition:opacity .24s;
-  }
-  .cell:hover .caption{opacity:1;}
-  .cell .caption .cat{
-    font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-  }
-  .cell .caption .date{white-space:nowrap; opacity:.82;}
+  .grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:16px;}
+  @media (max-width:520px){ .grid{grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:12px;} }
 
-  .empty{
-    padding:60px 20px; text-align:center; font-size:14px; color:var(--sub);
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;
+    display:flex; flex-direction:column; cursor:pointer; transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
   }
-  .loader{
-    padding:26px 0; text-align:center; font-size:13px; color:var(--sub);
+  .card:hover{transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,.08); border-color:#c7d2fe;}
+  .thumb{position:relative; width:100%; aspect-ratio:4/3; background:#f2f3f5; overflow:hidden;}
+  .thumb img{width:100%; height:100%; object-fit:cover; display:block;}
+  .thumb .ph{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#9ca3af; font-size:12.5px;}
+
+  .body{padding:11px 12px 13px; display:flex; flex-direction:column; gap:6px;}
+  .row{display:flex; align-items:center; justify-content:space-between; gap:8px;}
+  .tag{
+    font-size:11.5px; padding:2px 8px; border-radius:6px; font-weight:600; white-space:nowrap;
+    background:rgba(63,124,255,.1); color:#2f66e0;
   }
-  .loader.hide{display:none;}
+  .tag[data-t="卫生问题"]{background:rgba(0,180,42,.1); color:#0a7a2a;}
+  .tag[data-t="安全隐患"]{background:rgba(245,63,63,.1); color:#b32a2a;}
+  .tag[data-t="其他问题"]{background:rgba(107,114,128,.13); color:#4b5563;}
+  .time{font-size:11.5px; color:var(--sub); white-space:nowrap;}
+  .desc{
+    font-size:13px; color:#374151; margin:0; line-height:1.6;
+    display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;
+    word-break:break-word;
+  }
+
+  .state{margin:40px auto; max-width:420px; text-align:center; font-size:13.5px; color:var(--sub);}
+  .state .big{font-size:34px; line-height:1; margin-bottom:12px; opacity:.35;}
+  #sentinel{height:1px;}
+  .loading{text-align:center; padding:22px 0; font-size:13px; color:var(--sub);}
 
   /* 灯箱 */
   .lightbox{
-    position:fixed; inset:0; z-index:50; background:rgba(12,14,18,.92);
-    display:flex; align-items:center; justify-content:center; flex-direction:column;
-    padding:40px 20px 20px;
+    position:fixed; inset:0; z-index:1000; display:none; align-items:center; justify-content:center;
+    padding:24px; background:rgba(17,19,23,.86); backdrop-filter:blur(2px);
   }
-  .lightbox[hidden]{display:none;}
-  .lightbox img{
-    max-width:92vw; max-height:78vh; object-fit:contain; border-radius:6px;
-    box-shadow:0 18px 60px rgba(0,0,0,.5);
+  .lightbox.open{display:flex;}
+  .lightbox-inner{
+    background:#fff; border-radius:16px; overflow:hidden; max-width:min(940px, 100%);
+    max-height:calc(100vh - 48px); display:flex; flex-direction:column;
   }
-  .lb-bar{
-    margin-top:16px; display:flex; align-items:center; gap:18px;
-    font-size:13px; color:rgba(255,255,255,.86); flex-wrap:wrap; justify-content:center;
+  .lightbox-img{background:#0d0f13; display:flex; align-items:center; justify-content:center; overflow:auto;}
+  .lightbox-img img{max-width:100%; max-height:66vh; display:block;}
+  .lightbox-body{padding:16px 18px 20px; overflow:auto;}
+  .lightbox-meta{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;}
+  .lightbox-desc{font-size:14px; line-height:1.75; color:#1d1f23; white-space:pre-wrap; word-break:break-word; margin:0 0 12px;}
+  .lightbox-actions{display:flex; gap:10px; flex-wrap:wrap;}
+  .lightbox-actions a, .lightbox-actions button{
+    font-size:12.5px; padding:7px 13px; border-radius:8px; border:1px solid var(--line);
+    background:#fff; color:var(--text); text-decoration:none; cursor:pointer; font-family:inherit;
   }
-  .lb-bar a{color:#8fb4ff; text-decoration:none;}
-  .lb-bar a:hover{text-decoration:underline;}
-  .lb-bar button{
-    padding:6px 16px; font-size:13px; border-radius:7px; cursor:pointer;
-    border:1px solid rgba(255,255,255,.32); background:transparent; color:#fff; font-family:inherit;
+  .lightbox-actions a:hover, .lightbox-actions button:hover{border-color:#c9cdd4;}
+  .lightbox-close{
+    position:absolute; top:18px; right:20px; width:36px; height:36px; border-radius:50%;
+    border:none; background:rgba(255,255,255,.14); color:#fff; font-size:18px; cursor:pointer; line-height:1;
   }
-  .lb-bar button:hover{background:rgba(255,255,255,.12);}
+  .lightbox-close:hover{background:rgba(255,255,255,.26);}
+
+  .footnote{margin-top:26px; font-size:12px; color:var(--sub); text-align:center; line-height:1.8;}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <h1>全部图片</h1>
-    <a href="./upload.html">&larr; 去上传</a>
+    <div>
+      <h1>问题浏览</h1>
+      <p class="sub-line">按分类查看小区已上报的问题与现场照片</p>
+    </div>
+    <a href="./upload.html">上报问题 &rarr;</a>
   </header>
 
   <div id="banner" class="banner" hidden></div>
 
-  <div class="toolbar">
-    <div id="chips" class="chips"></div>
-    <div id="count" class="count"></div>
+  <div class="filters" id="filters">
+    <button type="button" class="chip active" data-cat="all">全部</button>
   </div>
 
-  <div id="grid" class="grid"></div>
-  <div id="empty" class="empty" hidden>还没有任何图片，先去上传页传一张吧。</div>
-  <div id="loader" class="loader"></div>
-  <div id="sentinel" style="height:1px;"></div>
+  <div class="grid" id="grid"></div>
+  <div id="state" class="state" hidden></div>
+  <div id="loading" class="loading" hidden>加载並…</div>
+  <div id="sentinel"></div>
+
+  <div class="footnote">
+    点击任意卡片可查看大图与完整问题描述
+  </div>
 </div>
 
-<div id="lightbox" class="lightbox" hidden>
-  <img id="lbImg" alt="">
-  <div class="lb-bar">
-    <span id="lbMeta"></span>
-    <a id="lbOpen" href="#" target="_blank" rel="noopener">在新窗口打开原图</a>
-    <button id="lbClose" type="button">关闭</button>
+<div class="lightbox" id="lightbox">
+  <button type="button" class="lightbox-close" id="lightboxClose" aria-label="关闭">×</button>
+  <div class="lightbox-inner">
+    <div class="lightbox-img"><img id="lightboxImg" alt="问题现场照片"></div>
+    <div class="lightbox-body">
+      <div class="lightbox-meta">
+        <span class="tag" id="lightboxTag"></span>
+        <span class="time" id="lightboxTime"></span>
+        <span class="time" id="lightboxId"></span>
+      </div>
+      <p class="lightbox-desc" id="lightboxDesc"></p>
+      <div class="lightbox-actions">
+        <a id="lightboxOpen" href="#" target="_blank" rel="noopener">新窗口打开原图</a>
+        <button type="button" id="lightboxPrev">上一张</button>
+        <button type="button" id="lightboxNext">下一张</button>
+      </div>
+    </div>
   </div>
 </div>
 
 <script src="https://fastly.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-const $ = function (sel) { return document.querySelector(sel); };
-const bannerEl = $('#banner');
-const chipsEl = $('#chips');
-const countEl = $('#count');
-const gridEl = $('#grid');
-const emptyEl = $('#empty');
-const loaderEl = $('#loader');
-const sentinel = $('#sentinel');
-const lightbox = $('#lightbox');
-const lbImg = $('#lbImg');
-const lbMeta = $('#lbMeta');
-const lbOpen = $('#lbOpen');
-const lbClose = $('#lbClose');
+(function () {
+  'use strict';
 
-let db = null;
-let activeCategory = null;   // null 表示全部
-let offset = 0;
-let total = 0;
-let loading = false;
-let hasMore = true;
-let io = null;
-let reqToken = 0;            // 用于丢弃过期请求的结果（快速切换筛选时）
+  var $ = function (id) { return document.getElementById(id); };
+  var el = {
+    banner: $('banner'),
+    filters: $('filters'),
+    grid: $('grid'),
+    state: $('state'),
+    loading: $('loading'),
+    sentinel: $('sentinel'),
+    lightbox: $('lightbox'),
+    lightboxClose: $('lightboxClose'),
+    lightboxImg: $('lightboxImg'),
+    lightboxTag: $('lightboxTag'),
+    lightboxTime: $('lightboxTime'),
+    lightboxId: $('lightboxId'),
+    lightboxDesc: $('lightboxDesc'),
+    lightboxOpen: $('lightboxOpen'),
+    lightboxPrev: $('lightboxPrev'),
+    lightboxNext: $('lightboxNext')
+  };
 
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, function (c) {
-    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
-  });
-}
+  var PAGE_SIZE = CONFIG.PAGE_SIZE || 24;
 
-function formatDate(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return '';
-  const p = function (n) { return String(n).padStart(2, '0'); };
-  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
-}
+  var state = {
+    category: 'all',      // 'all' 或 category_id 字符串
+    offset: 0,
+    total: null,
+    loading: false,
+    done: false,
+    items: [],            // 已渲染的图片（供灯箱翻页）
+    categories: [],
+    observer: null
+  };
 
-function friendlyError(err) {
-  const msg = (err && err.message) ? err.message : String(err);
-  if (/relation .* does not exist/i.test(msg)) return '数据表不存在，请先执行 supabase_schema.sql';
-  if (/row-level security/i.test(msg)) return '被数据库安全策略拒绝，请检查 RLS 策略是否已创建';
-  if (/Failed to fetch|network/i.test(msg)) return '网络请求失败，请检查网络或 Supabase 项目地址';
-  return msg;
-}
-
-function showBanner(html, type) {
-  bannerEl.hidden = false;
-  bannerEl.className = 'banner' + (type ? ' ' + type : '');
-  bannerEl.innerHTML = html;
-}
-
-function publicUrl(path) {
-  const res = db.storage.from(CONFIG.BUCKET).getPublicUrl(path);
-  return res.data.publicUrl;
-}
-
-function ensureClient() {
-  if (!CONFIG.SUPABASE_URL || !CONFIG.SUPABASE_ANON_KEY) return null;
-  if (!db) db = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
-  return db;
-}
-
-
-/* ---------------- 选项筛选条 ---------------- */
-async function loadCategories() {
-  // 先放好"全部"按钮，即使选项读取失败也能浏览全部图片
-  chipsEl.innerHTML = '';
-  const all = document.createElement('button');
-  all.className = 'chip active';
-  all.type = 'button';
-  all.textContent = '全部';
-  all.dataset.value = '';
-  chipsEl.appendChild(all);
-
-  const res = await db
-    .from('categories')
-    .select('id, name, sort_order')
-    .eq('is_active', true)
-    .order('sort_order', { ascending: true })
-    .order('id', { ascending: true });
-
-  if (res.error) {
-    showBanner('读取选项失败（仍可浏览全部图片）：' + escapeHtml(friendlyError(res.error)), 'err');
-    return;
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
-  const rows = res.data || [];
-  rows.forEach(function (c) {
-    const b = document.createElement('button');
-    b.className = 'chip';
-    b.type = 'button';
-    b.textContent = c.name;
-    b.dataset.value = String(c.id);
-    chipsEl.appendChild(b);
-  });
-}
-
-// 筛选点击只绑定一次
-chipsEl.addEventListener('click', function (e) {
-  const btn = e.target.closest('.chip');
-  if (!btn) return;
-  Array.prototype.forEach.call(chipsEl.children, function (el) {
-    el.classList.toggle('active', el === btn);
-  });
-  activeCategory = btn.dataset.value ? Number(btn.dataset.value) : null;
-  resetAndLoad();
-});
-
-
-/* ---------------- 分页加载 ---------------- */
-function resetAndLoad() {
-  reqToken += 1;
-  offset = 0;
-  total = 0;
-  hasMore = true;
-  loading = false;
-  gridEl.innerHTML = '';
-  emptyEl.hidden = true;
-  countEl.textContent = '';
-  fetchPage();
-}
-
-async function fetchPage() {
-  if (loading || !hasMore) return;
-  loading = true;
-  const token = reqToken;
-  loaderEl.classList.remove('hide');
-  loaderEl.textContent = '加载中…';
-
-  let query = db
-    .from('images')
-    .select('id, file_path, file_name, created_at, category_id, categories ( name )', { count: 'exact' })
-    .order('created_at', { ascending: false })
-    .order('id', { ascending: false })
-    .range(offset, offset + CONFIG.PAGE_SIZE - 1);
-
-  if (activeCategory !== null) query = query.eq('category_id', activeCategory);
-
-  const res = await query;
-
-  // 期间用户切换了筛选条件，丢弃这次结果
-  if (token !== reqToken) return;
-
-  if (res.error) {
-    loaderEl.textContent = '';
-    loaderEl.classList.add('hide');
-    loading = false;
-    hasMore = false;
-    showBanner('读取图片失败：' + escapeHtml(friendlyError(res.error)), 'err');
-    return;
+  function showBanner(text, kind) {
+    el.banner.hidden = false;
+    el.banner.className = 'banner' + (kind ? ' ' + kind : '');
+    el.banner.innerHTML = text;
   }
 
-  const rows = res.data || [];
-  if (typeof res.count === 'number') total = res.count;
-
-  if (offset === 0) {
-    emptyEl.hidden = rows.length !== 0;
-    if (rows.length === 0) countEl.textContent = '';
+  /* 本地时区：月日时分 */
+  function fmtTime(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    var p = function (n) { return String(n).padStart(2, '0'); };
+    return (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + p(d.getHours()) + ':' + p(d.getMinutes());
   }
 
-  rows.forEach(function (row) { gridEl.appendChild(buildCell(row)); });
-
-  offset += rows.length;
-  hasMore = rows.length === CONFIG.PAGE_SIZE;
-
-  countEl.textContent = total > 0 ? ('共 ' + total + ' 张') : '';
-  loaderEl.classList.add('hide');
-  loading = false;
-}
-
-function buildCell(row) {
-  const url = publicUrl(row.file_path);
-  const catName = (row.categories && row.categories.name) ? row.categories.name : '未分类';
-
-  const cell = document.createElement('figure');
-  cell.className = 'cell';
-  cell.title = row.file_name || '';
-
-  const img = document.createElement('img');
-  img.loading = 'lazy';           // 原生懒加载
-  img.decoding = 'async';
-  img.alt = row.file_name || catName;
-  img.src = url;
-  cell.appendChild(img);
-
-  const cap = document.createElement('figcaption');
-  cap.className = 'caption';
-  cap.innerHTML = '<span class="cat">' + escapeHtml(catName) + '</span>' +
-                  '<span class="date">' + escapeHtml(formatDate(row.created_at)) + '</span>';
-  cell.appendChild(cap);
-
-  cell.addEventListener('click', function () { openLightbox(url, row, catName); });
-  return cell;
-}
-
-
-/* ---------------- 灯箱 ---------------- */
-function openLightbox(url, row, catName) {
-  lbImg.src = url;
-  lbImg.alt = row.file_name || '';
-  lbOpen.href = url;
-  lbMeta.textContent = catName + ' · ' + formatDate(row.created_at) +
-                       (row.file_name ? ' · ' + row.file_name : '');
-  lightbox.hidden = false;
-  document.body.style.overflow = 'hidden';
-}
-
-function closeLightbox() {
-  lightbox.hidden = true;
-  lbImg.src = '';
-  document.body.style.overflow = '';
-}
-
-lbClose.addEventListener('click', closeLightbox);
-lightbox.addEventListener('click', function (e) {
-  if (e.target === lightbox) closeLightbox();
-});
-document.addEventListener('keydown', function (e) {
-  if (e.key === 'Escape' && !lightbox.hidden) closeLightbox();
-});
-
-
-/* ---------------- 启动 ---------------- */
-function observeSentinel() {
-  if (io) io.disconnect();
-  io = new IntersectionObserver(function (entries) {
-    if (entries[0].isIntersecting) fetchPage();
-  }, { rootMargin: '600px 0px' });
-  io.observe(sentinel);
-}
-
-async function boot() {
-  if (!ensureClient()) {
-    showBanner('尚未配置 Supabase。请用文本编辑器打开本文件，找到顶部的 <code>CONFIG</code> 区块，' +
-               '填写 <code>SUPABASE_URL</code> 与 <code>SUPABASE_ANON_KEY</code>，保存后刷新页面。', 'err');
-    chipsEl.innerHTML = '';
-    emptyEl.hidden = true;
-    loaderEl.classList.add('hide');
-    return;
+  function fmtFullTime(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    var p = function (n) { return String(n).padStart(2, '0'); };
+    return d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日 ' +
+      p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
   }
-  await loadCategories();
-  resetAndLoad();
-  observeSentinel();
-}
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', boot);
-} else {
-  boot();
-}
+  var db = null;
+  function initClient() {
+    if (!CONFIG.SUPABASE_URL || !CONFIG.SUPABASE_ANON_KEY ||
+        CONFIG.SUPABASE_URL.indexOf('YOUR-') !== -1 ||
+        CONFIG.SUPABASE_ANON_KEY.indexOf('YOUR-') !== -1) {
+      showBanner('未配置 SUPABASE_URL 与 SUPABASE_ANON_KEY，请先补全页面头部的 CONFIG 区块。', 'err');
+      return false;
+    }
+    if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+      showBanner('Supabase JS SDK 加载失败，请检查网络后刷新页面。', 'err');
+      return false;
+    }
+    db = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+    return true;
+  }
+
+  function publicUrl(filePath) {
+    if (!filePath) return '';
+    try {
+      var r = db.storage.from(CONFIG.BUCKET).getPublicUrl(filePath);
+      return (r && r.data && r.data.publicUrl) || '';
+    } catch (e) {
+      return CONFIG.SUPABASE_URL.replace(/\/+$/, '') + '/storage/v1/object/public/' +
+        CONFIG.BUCKET + '/' + filePath;
+    }
+  }
+
+  /* --------------------------------------------------------------- 分类筛选 */
+  function loadCategories() {
+    return db.from('categories')
+      .select('id,name,sort_order')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true })
+      .then(function (res) {
+        if (res.error) {
+          showBanner('分类加载失败：' + res.error.message + '，当前仅能浏览全部问题。', 'warn');
+          return;
+        }
+        var rows = res.data || [];
+        var byName = {};
+        rows.forEach(function (r) { byName[r.name] = r; });
+
+        var chips = '<button type="button" class="chip active" data-cat="all">全部</button>';
+        CONFIG.CATEGORY_ORDER.forEach(function (name) {
+          var c = byName[name];
+          if (c) {
+            state.categories.push(c);
+            chips += '<button type="button" class="chip" data-cat="' + c.id + '">' +
+              escapeHtml(c.name) + '</button>';
+          }
+        });
+        el.filters.innerHTML = chips;
+
+        var missing = CONFIG.CATEGORY_ORDER.filter(function (n) { return !byName[n]; });
+        if (missing.length) {
+          showBanner('分类数据不完整，缺少：' + escapeHtml(missing.join('、')) +
+            '。请在 Supabase 执行 <code>migration_v2.sql</code>。', 'warn');
+        }
+
+        Array.prototype.forEach.call(el.filters.querySelectorAll('.chip'), function (btn) {
+          btn.addEventListener('click', function () {
+            if (btn.dataset.cat === state.category) return;
+            Array.prototype.forEach.call(el.filters.querySelectorAll('.chip'), function (b) {
+              b.classList.remove('active');
+            });
+            btn.classList.add('active');
+            state.category = btn.dataset.cat;
+            resetAndLoad();
+          });
+        });
+      });
+  }
+
+  /* --------------------------------------------------------------- 数据加载 */
+  function catName(item) {
+    if (item.categories && item.categories.name) return item.categories.name;
+    for (var i = 0; i < state.categories.length; i++) {
+      if (String(state.categories[i].id) === String(item.category_id)) return state.categories[i].name;
+    }
+    return '未分类';
+  }
+
+  function showState(html) {
+    if (!html) { el.state.hidden = true; el.state.innerHTML = ''; return; }
+    el.state.hidden = false;
+    el.state.innerHTML = html;
+  }
+
+  function resetAndLoad() {
+    el.grid.innerHTML = '';
+    state.offset = 0;
+    state.total = null;
+    state.done = false;
+    state.loading = false;
+    state.items = [];
+    showState('');
+    loadPage();
+  }
+
+  function loadPage() {
+    if (state.loading || state.done) return;
+    state.loading = true;
+    el.loading.hidden = false;
+
+    var from = state.offset;
+    var to = state.offset + PAGE_SIZE - 1;
+
+    var q = db.from('images')
+      .select('id,file_path,file_name,description,category_id,mime_type,created_at,categories(name)',
+        { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
+      .range(from, to);
+
+    if (state.category !== 'all') q = q.eq('category_id', Number(state.category));
+
+    q.then(function (res) {
+      state.loading = false;
+      el.loading.hidden = true;
+
+      if (res.error) {
+        showBanner('加载失败：' + res.error.message, 'err');
+        showState('<div class="big">!</div>加载失败，请刷新页面重试');
+        return;
+      }
+
+      var rows = res.data || [];
+      if (typeof res.count === 'number') state.total = res.count;
+
+      if (rows.length === 0 && state.offset === 0) {
+        showState(
+          '<div class="big">▦</div>' +
+          (state.category === 'all'
+            ? '暂无上报记录'
+            : '该分类下暂无上报记录')
+        );
+        state.done = true;
+        return;
+      }
+
+      rows.forEach(function (row) {
+        state.items.push(row);
+        el.grid.appendChild(buildCard(row));
+      });
+
+      state.offset += rows.length;
+
+      if (rows.length < PAGE_SIZE) {
+        state.done = true;
+        showState(state.total ? '已显示全部 ' + state.total + ' 条记录' : '');
+      }
+    });
+  }
+
+  function buildCard(row) {
+    var card = document.createElement('article');
+    card.className = 'card';
+    var url = publicUrl(row.file_path);
+    var name = catName(row);
+    var desc = row.description || '';
+    var time = fmtTime(row.created_at);
+
+    var thumb = document.createElement('div');
+    thumb.className = 'thumb';
+    var img = document.createElement('img');
+    img.loading = 'lazy';
+    img.decoding = 'async';
+    img.alt = desc ? desc.slice(0, 40) : '问题现场照片';
+    if (url) img.src = url;
+    img.addEventListener('error', function () {
+      img.style.display = 'none';
+      var ph = document.createElement('div');
+      ph.className = 'ph';
+      ph.textContent = '图片加载失败';
+      thumb.appendChild(ph);
+    });
+    thumb.appendChild(img);
+
+    var body = document.createElement('div');
+    body.className = 'body';
+    body.innerHTML =
+      '<div class="row">' +
+        '<span class="tag" data-t="' + escapeHtml(name) + '">' + escapeHtml(name) + '</span>' +
+        '<span class="time">' + escapeHtml(time) + '</span>' +
+      '</div>' +
+      '<p class="desc">' + escapeHtml(desc || '（未填写问题描述）') + '</p>';
+
+    card.appendChild(thumb);
+    card.appendChild(body);
+
+    card.addEventListener('click', function () { openLightbox(row); });
+    return card;
+  }
+
+  /* --------------------------------------------------------------- 灯箱 */
+  var currentIndex = -1;
+
+  function openLightbox(row) {
+    currentIndex = state.items.findIndex(function (it) { return String(it.id) === String(row.id); });
+    fillLightbox(row);
+    el.lightbox.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function fillLightbox(row) {
+    var url = publicUrl(row.file_path);
+    var name = catName(row);
+    el.lightboxImg.src = url;
+    el.lightboxImg.alt = '问题现场照片';
+    el.lightboxTag.textContent = name;
+    el.lightboxTag.setAttribute('data-t', name);
+    el.lightboxTime.textContent = '上报时间：' + fmtFullTime(row.created_at);
+    el.lightboxId.textContent = '编号 #' + row.id;
+    el.lightboxDesc.textContent = row.description || '（未填写问题描述）';
+    el.lightboxOpen.href = url || '#';
+  }
+
+  function closeLightbox() {
+    el.lightbox.classList.remove('open');
+    el.lightboxImg.removeAttribute('src');
+    document.body.style.overflow = '';
+    currentIndex = -1;
+  }
+
+  function step(dir) {
+    if (currentIndex < 0 || state.items.length === 0) return;
+    var next = currentIndex + dir;
+    if (next < 0) next = state.items.length - 1;
+    if (next >= state.items.length) next = 0;
+    currentIndex = next;
+    fillLightbox(state.items[next]);
+  }
+
+  function bindLightbox() {
+    el.lightboxClose.addEventListener('click', closeLightbox);
+    el.lightbox.addEventListener('click', function (e) {
+      if (e.target === el.lightbox) closeLightbox();
+    });
+    el.lightboxPrev.addEventListener('click', function (e) { e.stopPropagation(); step(-1); });
+    el.lightboxNext.addEventListener('click', function (e) { e.stopPropagation(); step(1); });
+    document.addEventListener('keydown', function (e) {
+      if (!el.lightbox.classList.contains('open')) return;
+      if (e.key === 'Escape') closeLightbox();
+      else if (e.key === 'ArrowLeft') step(-1);
+      else if (e.key === 'ArrowRight') step(1);
+    });
+  }
+
+  /* --------------------------------------------------------------- 滚动加载 */
+  function bindInfiniteScroll() {
+    if (!('IntersectionObserver' in window)) {
+      window.addEventListener('scroll', function () {
+        if (state.loading || state.done) return;
+        if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 400) loadPage();
+      }, { passive: true });
+      return;
+    }
+    state.observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) loadPage();
+      });
+    }, { rootMargin: '600px 0px' });
+    state.observer.observe(el.sentinel);
+  }
+
+  /* ------------------------------------------------------------------- 启动 */
+  function boot() {
+    bindLightbox();
+    bindInfiniteScroll();
+    if (!initClient()) {
+      showState('<div class="big">!</div>站点未完成配置');
+      return;
+    }
+    loadCategories().then(function () {
+      loadPage();
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+})();
 </script>
 </body>
 </html>
