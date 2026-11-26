@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>图片收集站</title>
+<title>小区问题上报站</title>
 <style>
   :root { color-scheme: light dark; }
   * { box-sizing: border-box; }
@@ -36,21 +36,21 @@
 </head>
 <body>
   <div class="wrap">
-    <h1>图片收集站</h1>
-    <p class="sub">选择分类上传图片，或浏览全部已上传内容。</p>
+    <h1>小区问题上报站</h1>
+    <p class="sub">上传现场照片、选择问题分类并填写问题描述，或浏览全部已上报问题。</p>
     <div class="grid">
       <a class="card" href="upload.html">
         <span class="ico">⬆</span>
-        <div class="t">上传图片</div>
-        <div class="d">选择分类 → 选图 → 自动压缩后上传</div>
+        <div class="t">上报问题</div>
+        <div class="d">选择分类 → 填写问题描述 → 上传现场照片（需通过验证码）</div>
       </a>
       <a class="card" href="browse.html">
         <span class="ico">▦</span>
-        <div class="t">浏览全部</div>
-        <div class="d">网格查看、按分类筛选、点击放大</div>
+        <div class="t">浏览问题</div>
+        <div class="d">按四类问题筛选、查看描述与上传时间、点击放大原图</div>
       </a>
     </div>
-    <footer>数据存储于 Supabase · 免费额度 1GB</footer>
+    <footer>数据存储于 Supabase · 上传经验证码与限流保护 · 图片可能含他人隐私，请谨慎上传</footer>
   </div>
 </body>
 </html>
