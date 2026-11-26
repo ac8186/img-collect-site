@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>问题上报 · 小区物业管理问题汇总</title>
+<title>新增记录 · 小区物业管理问题汇总</title>
 
 <!-- ============================ CONFIG 区块开始 ============================ -->
 <script>
@@ -152,10 +152,10 @@ const CONFIG = {
 <div class="wrap">
   <header>
     <div>
-      <h1>问题上报</h1>
-      <p class="sub-line">上传现场照片并填写问题描述，物业将据此跟进处理</p>
+      <h1>新增记录</h1>
+      <p class="sub-line">汇总小区物业管理问题：上传现场照片并填写问题描述，物业将据此跟进处理</p>
     </div>
-    <a href="./browse.html">查看已上报问题 &rarr;</a>
+    <a href="./browse.html">查看全部记录 &rarr;</a>
   </header>
 
   <div id="banner" class="banner" hidden></div>
@@ -199,7 +199,7 @@ const CONFIG = {
     <div class="note">提示：图片中可能含他人隐私（如门牌号、车牌、人脸），请谨慎上传，请勿上传与小区问题无关的内容。</div>
 
     <div class="actions">
-      <button type="button" class="btn primary" id="submitBtn" disabled>提交问题</button>
+      <button type="button" class="btn primary" id="submitBtn" disabled>提交记录</button>
       <button type="button" class="btn ghost" id="resetBtn">重置</button>
     </div>
 
@@ -606,12 +606,12 @@ const CONFIG = {
         el.progressText.textContent = '提交完成';
         var img = data.image || {};
         var html =
-          '<div class="title">提交成功</div>' +
+          '<div class="title">已收录</div>' +
           '<div>' + escapeHtml(img.category_name || '') + ' · ' +
           escapeHtml(img.description || description) + '</div>' +
           '<div class="code">记录编号 #' + escapeHtml(String(img.id || '')) + '</div>';
         if (img.public_url) {
-          html += '<img class="thumb" src="' + escapeHtml(img.public_url) + '" alt="已提交照片">';
+          html += '<img class="thumb" src="' + escapeHtml(img.public_url) + '" alt="已收录照片">';
         }
         setResult(html, 'ok');
 
