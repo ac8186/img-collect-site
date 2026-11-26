@@ -123,9 +123,9 @@ const CONFIG = {
   <header>
     <div>
       <h1>问题浏览</h1>
-      <p class="sub-line">按分类查看小区已上报的问题与现场照片</p>
+      <p class="sub-line">按分类查看小区物业管理问题的记录与现场照片</p>
     </div>
-    <a href="./upload.html">上报问题 &rarr;</a>
+    <a href="./upload.html">新增记录 &rarr;</a>
   </header>
 
   <div id="banner" class="banner" hidden></div>
@@ -365,8 +365,8 @@ const CONFIG = {
         showState(
           '<div class="big">▦</div>' +
           (state.category === 'all'
-            ? '暂无上报记录'
-            : '该分类下暂无上报记录')
+            ? '暂无记录'
+            : '该分类下暂无记录')
         );
         state.done = true;
         return;
@@ -443,7 +443,7 @@ const CONFIG = {
     el.lightboxImg.alt = '问题现场照片';
     el.lightboxTag.textContent = name;
     el.lightboxTag.setAttribute('data-t', name);
-    el.lightboxTime.textContent = '上报时间：' + fmtFullTime(row.created_at);
+    el.lightboxTime.textContent = '记录时间：' + fmtFullTime(row.created_at);
     el.lightboxId.textContent = '编号 #' + row.id;
     el.lightboxDesc.textContent = row.description || '（未填写问题描述）';
     el.lightboxOpen.href = url || '#';
