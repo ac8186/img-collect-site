@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>小区问题上报站</title>
+<title>小区物业管理问题汇总</title>
 <style>
   :root { color-scheme: light dark; }
   * { box-sizing: border-box; }
@@ -27,6 +27,8 @@
   .d { font-size: 13px; color: #6b7280; line-height: 1.6; }
   .ico { font-size: 22px; margin-bottom: 10px; display: block; }
   footer { margin-top: 28px; font-size: 12px; color: #9ca3af; text-align: center; }
+  .admin-link { color: #c3c8d0; text-decoration: none; font-size: 11px; margin-left: 6px; }
+  .admin-link:hover { color: #9ca3af; text-decoration: underline; }
   @media (prefers-color-scheme: dark) {
     body { background: #14161a; color: #e8eaed; }
     a.card { background: #1c1f24; border-color: #2a2f36; }
@@ -36,21 +38,22 @@
 </head>
 <body>
   <div class="wrap">
-    <h1>小区问题上报站</h1>
-    <p class="sub">上传现场照片、选择问题分类并填写问题描述，或浏览全部已上报问题。</p>
+    <h1>小区物业管理问题汇总</h1>
+    <p class="sub">汇总收集小区物业管理问题：上传现场照片、选择问题分类并填写问题描述，或查看全部已收录记录。</p>
     <div class="grid">
       <a class="card" href="upload.html">
         <span class="ico">⬆</span>
-        <div class="t">上报问题</div>
+        <div class="t">新增记录</div>
         <div class="d">选择分类 → 填写问题描述 → 上传现场照片（需通过验证码）</div>
       </a>
       <a class="card" href="browse.html">
         <span class="ico">▦</span>
-        <div class="t">浏览问题</div>
-        <div class="d">按四类问题筛选、查看描述与上传时间、点击放大原图</div>
+        <div class="t">查看全部记录</div>
+        <div class="d">按四类问题筛选、查看描述与记录时间、点击放大原图</div>
       </a>
     </div>
-    <footer>数据存储于 Supabase · 上传经验证码与限流保护 · 图片可能含他人隐私，请谨慎上传</footer>
+    <footer>数据存储于 Supabase · 上传经验证码与限流保护 · 图片可能含他人隐私，请谨慎上传
+      <a class="admin-link" href="master/">管理</a></footer>
   </div>
 </body>
 </html>
