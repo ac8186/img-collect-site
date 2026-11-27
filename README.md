@@ -1,10 +1,21 @@
+---
+AIGC:
+    Label: "1"
+    ContentProducer: 001191440300708461136T1XGW3
+    ProduceID: ba7c37fc3d3a27ec82ef4814ad5956be_e0402d9de97311f1961f525400f8a581
+    ReservedCode1: 9pvqgsGqhjMWj14Rms6LVw6CpM6Ra7FGtP95YP77HEjS+VhJmn5RFxyAPxU0jEBa+cydpIk/XIM/Hfgeckk+OkQInrLxTsVFFNXSPoP361ShxZyDwhr7Lt/LSSPPf2j7HraUy6grAYJqgpORf9Xg38x5b9VkwgHp8Q91nednJzi8E5nukSA+yV5is3Y=
+    ContentPropagator: 001191440300708461136T1XGW3
+    PropagateID: ba7c37fc3d3a27ec82ef4814ad5956be_e0402d9de97311f1961f525400f8a581
+    ReservedCode2: 9pvqgsGqhjMWj14Rms6LVw6CpM6Ra7FGtP95YP77HEjS+VhJmn5RFxyAPxU0jEBa+cydpIk/XIM/Hfgeckk+OkQInrLxTsVFFNXSPoP361ShxZyDwhr7Lt/LSSPPf2j7HraUy6grAYJqgpORf9Xg38x5b9VkwgHp8Q91nednJzi8E5nukSA+yV5is3Y=
+---
+
 # 小区物业管理问题汇总站（v3）
 
-基于 Supabase 的静态站点：汇总收集小区物业管理问题——居民上传现场照片并填写问题描述，物业与居民都可按分类浏览已收录的记录。
+基于 Supabase 的静态站点：记录小区物业管理存在的问题——上传现场照片并填写问题描述，按分类浏览已收录的记录。
 
 v2 相比 v1 的变化：四类问题分类、问题描述字段、算术验证码 + IP 限流、匿名上传权限撤销（写入统一走 Edge Function）。
 
-v3 相比 v2 的变化：新增管理后台 `/master/`（口令鉴权、筛选、搜索、批量删除、导出 CSV）；全站表述统一为「汇总收集物业管理问题」口径。
+v3 相比 v2 的变化：新增管理后台 `/master/`（口令鉴权、筛选、搜索、批量删除、导出 CSV）；全站表述统一为「记录小区物业管理存在的问题」口径。
 
 ---
 
@@ -16,7 +27,7 @@ v3 相比 v2 的变化：新增管理后台 `/master/`（口令鉴权、筛选�
 - 问题描述必填，5–500 字，带实时字数统计
 - 现场照片：点击或拖放选择，支持 JPG / PNG / WebP / GIF，单张 ≤ 10MB，非 GIF 自动压缩到最长边 1920px
 - 算术验证码：一次性 token，5 分钟有效，可点「换一题」刷新，答错即作废
-- 提交走 `submit` Edge Function（multipart），带真实上传进度与结果反馈
+- 提交走 `submit` Edge Function（multipart），带真实上传进度与结果提示
 - 页面提示「图片中可能含他人隐私（如门牌号、车牌、人脸），请谨慎上传」
 
 **浏览页 `browse.html`**
@@ -220,7 +231,7 @@ const CONFIG = {
     "created_at": "2026-11-26T08:40:12.345Z",
     "public_url": "https://jcaexhqpmbucaezwoczx.supabase.co/storage/v1/object/public/uploads/2026/11/3f9a1b2c3d4e.jpg"
   },
-  "message": "提交成功，感谢您的反馈"
+  "message": "记录已收录"
 }
 ```
 
@@ -377,3 +388,4 @@ const CONFIG = {
 
 **Q：想修改分类**
 修改 `migration_v2.sql` 中的四条分类名称/排序后重跑；同时同步两个页面 `CONFIG.CATEGORY_ORDER` 数组（决定下拉与筛选顺序）。
+*（内容由AI生成，仅供参考）*
