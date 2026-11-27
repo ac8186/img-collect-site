@@ -153,7 +153,7 @@ const CONFIG = {
   <header>
     <div>
       <h1>新增记录</h1>
-      <p class="sub-line">汇总小区物业管理问题：上传现场照片并填写问题描述，物业将据此跟进处理</p>
+      <p class="sub-line">记录小区物业管理问题：上传现场照片、选择问题分类并填写问题描述</p>
     </div>
     <a href="./browse.html">查看全部记录 &rarr;</a>
   </header>
@@ -364,7 +364,7 @@ const CONFIG = {
     el.descInput.classList.toggle('invalid', over);
   }
 
-  /* --------------------------------------------------------------- 图片处理 */
+  /* --------------------------------------------------------------- 图片压缩 */
   function loadImageElement(file) {
     return new Promise(function (resolve, reject) {
       var url = URL.createObjectURL(file);
@@ -453,7 +453,7 @@ const CONFIG = {
     state.file = file;
     el.preview.hidden = false;
     el.previewName.textContent = file.name;
-    el.previewSize.textContent = fmtSize(file.size) + ' · 处理中…';
+    el.previewSize.textContent = fmtSize(file.size) + ' · 压缩中…';
 
     prepareImage(file).then(function (out) {
       state.blob = out.blob;
@@ -465,7 +465,7 @@ const CONFIG = {
       refreshSubmitState();
     }).catch(function (err) {
       clearFile();
-      showBanner(err.message || '图片处理失败，请更换图片', 'err');
+      showBanner(err.message || '图片压缩失败，请更换图片', 'err');
     });
   }
 
